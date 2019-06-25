@@ -1,0 +1,3 @@
+- cmpAcc.m - trying to compare world and body accelerations for coriolis and cetrifugal
+- plot_csv.m - animate the bebop on matlab similar to optiTrack
+- rotationTry.m -  

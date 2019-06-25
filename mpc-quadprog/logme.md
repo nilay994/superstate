@@ -1,0 +1,17 @@
+- [x] suspect problems in the discretization, check math `theta is better than tan theta`
+- currently assuming immediate theta convergence, do sys id later
+- why does interior point algo ignore initial conditions, not convenient
+- [x] simulate dynamics properly? `yellow is better than purple`
+- [x] see if nonlinear deadreckoning and forced linear propagation are similar - `same as above`
+- [x] is positive definite H signifying convergence `sort of`? 
+- unclear about horizons, velocity and time 
+- [x] should I already couple theta for higher velocity? `no, just use the if statements, vy > vx` 
+- [x] am I approaching the cost function from the correct direction? - `yes, going towards zero zero`
+- [x] why am I always saturating? `maybe because we are optimal?`
+- [x] the optimizer - stops with fvals of e+04, this is too high for a terminal cost `be careful about terminal`
+- find c++ solver for quadprog for ROS atleast
+- KKT conditions for quadprog and QR decomp for pprz if Bebop
+- [x] emulate inputs on matlab first
+- emulate it with 2D now, optimize for 2D also?
+- christophe maneuver time optimal?
+- checkout ACADO solvers (https://github.com/acados/qpOASES/blob/master/doc/manual.pdf)

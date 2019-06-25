@@ -1,0 +1,2 @@
+- contains biasless accelerometer and ground truth logs. used for fitting the linear drag model
+- source of dataset unknown

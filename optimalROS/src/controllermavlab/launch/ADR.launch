@@ -1,0 +1,55 @@
+<launch>
+
+	 <node
+		pkg="estimation"
+		type="estimation_node"
+		name="estimation_node"
+		output="screen"
+		>
+	</node>
+
+  <node
+		pkg="ransac"
+		type="ransac_node"
+		name="ransac_node"
+		output="screen"
+		>
+	</node>
+
+	<node
+		pkg="controllermavlab"
+		type="controllermavlab_node"
+		name="controllermavlab_node"
+		output="screen"
+    >
+
+		<param name="kp_roll" value="5.0"/>
+		<param name="kd_roll" value="0.9"/>
+
+		<param name="kp_pitch" value="6.5"/>
+		<param name="kd_pitch" value="0.95"/>
+
+		<param name="kp_yaw" value="2.2"/>
+		<param name="kd_yaw" value="0.03"/>
+
+		<param name="kp_yawRate" value="1.5"/>
+
+		<param name="kp_hVel" value="10.0"/>
+
+		<param name="kp_vel_x" value="0.25"/>
+		<param name="kd_vel_x" value="0.00"/>
+
+		<param name="kp_vel_y" value="0.15"/>
+		<param name="kd_vel_y" value="0.00"/>
+
+		<param name="kp_pos_x" value="1.35"/>
+		<param name="kd_pos_x" value="0.000075"/>
+
+		<param name="kp_pos_y" value="1.35"/>
+		<param name="kd_pos_y" value="0.000075"/>
+
+		<param name="kp_pos_z" value="4.0"/>
+		<param name="kd_pos_z" value="0.0"/>
+	</node>
+
+</launch>

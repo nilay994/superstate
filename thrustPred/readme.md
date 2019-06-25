@@ -1,0 +1,4 @@
+- thrust prediction implies the induced vel/angle of attack 
+- colored velocity plots
+- [] todo: take the plots again with Look up table justify
+- maybe just jump laterally using optimal control and combine this and that
