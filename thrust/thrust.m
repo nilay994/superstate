@@ -55,7 +55,7 @@ filt_a(:,1) = lsim(filter_acc, accel(:,1), t);
 filt_a(:,2) = lsim(filter_acc, accel(:,2), t);
 filt_a(:,3) = lsim(filter_acc, accel(:,3), t);
 
-somevar(:,3) = lsim(filter_acc, optiAcc(:,3), t);
+% somevar(:,3) = lsim(filter_acc, optiAcc(:,3), t);
 
 %% check if thrust matches (in case of incorrect altitude pprz) 
 T = thrustMatch(angBody, optiAcc, filt_a, t);

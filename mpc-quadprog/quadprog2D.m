@@ -19,11 +19,11 @@
 % optimize for U subject to constraints using quadprop -
 % interior-point-convex
 
-pos0 = [10, 2];
-posf = [0, 0];
+pos0 = [-24, -7];
+posf = [-0.37, -12.23];
 
 vel0 = [0, 0];
-velf = [0, 0];
+velf = [6, 0];
 
 x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
 xd = [velf(1); posf(1); velf(2); posf(2)];
@@ -68,15 +68,15 @@ for i = 0:1:N-1
     R(:,col_idx) = (sysZ.A)^(N-i-1) * (sysZ.B);
 end
 H = 2 * (R' * P * R);
-H = 0.5 * (H + H' + eye(size(H)));
+H = 0.5 * (H + H' + 0.5 * eye(size(H)));
 % check if positive definite for convergence?
-plot(eig(0.5 * (H + H')), '.')
+min(eig(H))
 % H = 0.5 * (H + H' + eye(size(H)));
 
 
 f = 2 * (((sysZ.A)^N * x0)' - xd') * P * R;
 
-maxbank = 45/57;
+maxbank = 35 * 3.142 / 180;
 
 ub =  maxbank * ones(2 * N, 1);  % one radian is 57 degrees max bank angle
 lb = -maxbank * ones(2 * N, 1);  % one radian is 57 degrees max bank angle
