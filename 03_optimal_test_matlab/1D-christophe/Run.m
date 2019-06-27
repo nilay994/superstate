@@ -3,7 +3,7 @@ clc;
 close all;
 
 
-dt = 1/1000;
+dt = 1/100;
 t = 0:dt:10;
 
 len = size(t,2);
@@ -16,16 +16,20 @@ v = zeros(len,2);
 
 
 % target
-xd = [-0.37, -12.23];
-vd = [5, 0];
-% xd = [0, 0];
-% vd = [6, 0];
+% test3
+% xd = [-0.37, -12.23];
+% vd = [5, 0];
+% cyberzoo
+xd = [0, 0];
+vd = [3, 0];
 
 % initialize
-x(1,:) = [-24, 5];
-v(1,:) = [2, 0];
-% x(1,:) = [-14, 4];
-% v(1,:) = [6, 0];
+% test3
+% x(1,:) = [-24, 5];
+% v(1,:) = [2, 0];
+% cyberzoo
+x(1,:) = [-5.5, -2];
+v(1,:) = [0, 0];
 
 % Gains
 K_ff_theta = 14/57 / 5;   % rad to fly at (e.g. 10 deg = 5 m/s)
@@ -57,6 +61,16 @@ for i=2:len
     elseif (theta(i) < -maxbank)
         theta(i) = -maxbank;
     end
+    
+    d_theta = theta(i) - theta(i-1);
+    if (d_theta > p_max)
+        d_theta = p_max;
+    elseif (d_theta < -p_max)
+        d_theta = -p_max;
+    end
+    
+    theta(i) = theta(i-1) + d_theta;
+    
     % ax = sin(theta(i)) * 9.81  / cos(phi(i)) - v(i-1, 1) * 0.55;
     
     % Lateral PID
@@ -74,7 +88,8 @@ for i=2:len
         end
     end
     
-    if (x(i-1,1) > 0)
+    % until after passing the gate
+    if(abs(x(i-1, 1) - xd(1)) < 0.1)
         phi_cmd = 0;
     end
     

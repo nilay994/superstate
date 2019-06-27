@@ -2,7 +2,7 @@ function [phi0, phi1, t1] = optimizer(x0, v0, xd, vd)
     
 
     % t1 = (-x0(1) / v0(1)) * 0.55;
-    t1 = (xd(1) - x0(1))/((v0(1) + vd(1))/2) * 0.55;
+    t1 = (xd(1) - x0(1))/((v0(1) + vd(1))/2) * 0.45;
     
     
     figure(14)
