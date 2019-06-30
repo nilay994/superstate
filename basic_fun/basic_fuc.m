@@ -43,7 +43,7 @@ dr_cmd.pitch = M(:,28);
 % NOTE: using smooth creates jumps at the head and the tail of the vector 
 % if a cropped flight data is used. 
 % (cropped flight data is essential for thrust modelling, no one is starting and stopping logs for me in hover position)
-windowSize = 150; 
+windowSize = 40; 
 b = (1/windowSize)*ones(1,windowSize);
 a = 1;
 
@@ -63,13 +63,23 @@ filt_a(:,1) = lsim(filter_acc, accel(:,1), t);
 filt_a(:,2) = lsim(filter_acc, accel(:,2), t);
 filt_a(:,3) = lsim(filter_acc, accel(:,3), t);
 
+st = 2;
+[filt_a, optiAcc, optiVel]= optiData(optiPos, accel, t, dt, 150, st);
 %% check if thrust matches (in case of incorrect altitude pprz) 
 T = thrustMatch(angBody, optiAcc, filt_a, t);
+
+acc_w = zeros(length(t), 3);
+vel_w = zeros(length(t), 3);
+pos_w = zeros(length(t), 3);
+
+st = 40;
+pos_w(1:st,:) = optiPos(1:st,:);
+vel_w(1:st,:) = optiVel(1:st,:);
 
 velBody = zeros(length(t), 3);
 newT = zeros(length(t), 1);
 % check what happens with velbody
-for i = 1:1:length(t)
+for i = (st-2):1:length(t)
     
     phi = angBody(i,1);
     theta = angBody(i,2);
@@ -82,10 +92,23 @@ for i = 1:1:length(t)
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
     
     velBody(i,1:3) = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)])'; % laterals shouldn't be zero
-    newT(i,1) = T(i) +  * rssq([velBody(i,1),velBody(i,2)])^2; % time to match with body z (accelerometer)
+    % newT(i,1) = T(i) +  * rssq([velBody(i,1),velBody(i,2)])^2; % time to match with body z (accelerometer)
+    a_body = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)]);
+    acc_t = ([0;0;9.81] + R' * [a_body(1); a_body(2); a_body(3)])';
+    acc_w(i,1) = acc_t(1);
+    acc_w(i,2) = acc_t(2);
+    acc_w(i,3) = acc_t(3);
+    
+    vel_w(i,1:3) = vel_w(i-1,1:3) + (acc_w(i,1:3) .* dt);
+    pos_w(i,1:3) = pos_w(i-1,1:3) + (vel_w(i,1:3) .* dt);
     
 end
 
+
+
 %% TODO: check sanity of optiTrack integrate back, which will tell you what your thrust model should be giving out. 
 % what you see currently might not be the thrust but something else - which
+
+
+
 % is scary. it might be some drag thing or some velBody thing

@@ -121,7 +121,7 @@ vel(1,:) = vel0;
 pos(1,:) = pos0;
 
 dt = h;
-psi = 0;
+psi = 10 * 3.142 / 180;
 
 flap = 0.8;
 % flap = 1;
@@ -131,6 +131,10 @@ for i = 2:1:N
     phi   = -1 * U(2*i -2);
     
     states(:,i) = (sysZ.A) * states(:,i-1) + (sysZ.B) * [theta; -phi];
+    
+    newAng = [cos(psi) -sin(psi); sin(psi) cos(psi)] * [theta; phi];
+    theta = newAng(1);
+    phi = newAng(2);
     
     T =  9.81 / (cos(phi * flap) * cos(theta * flap));
     ax = (cos(phi) * sin(theta) * cos(psi) + sin(phi) * sin(psi)) * T - vel(i-1, 1) * 0.5;

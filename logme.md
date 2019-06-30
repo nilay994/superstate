@@ -6,11 +6,19 @@
 2019-06-17_17_01_37.csv - right angle with corol
 2019-06-17_14_06_08.csv - switching time optimization
 2019-06-18_19_26_15.csv - 90 turn with coroilis
-2019-06-18_20_51_09.csv - train for altitude dataset
 2019-06-20_16_21_41.csv - maybe 90 degree again
+2019-06-18_20_51_09.csv - train for altitude dataset
 2019-06-18_21_01_48.csv - test for altitude dataset
-2019-06-24_14_59_20.csv - 2x 90 deg
+2019-06-24_14_59_20.csv - 2x 90 deg - this was with 0.8, need to replot for without 0.8
 2019-06-24_14_29_46.csv - agile push, vbz vbh
+
+
+# required logs: 
+longer slower is fine, need high resolution time
+- check heading, altitude perfectly
+- see if thrust is thrust (6 m/s in body? nah!!) 
+- check optiTrack sanity, reintegrate back
+
 
 28-04
 - optiTrack information needs to be handled accurately. filter using bessel is fine for accelerometer raw. 
