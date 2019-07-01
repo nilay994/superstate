@@ -96,7 +96,7 @@ filt_a(:,3) = lsim(filter_acc, compensated_acc(:,3), t);
 % y = abs(T)./max(max(abs(T)));
 %% least squares to the rescue in progress thrust predictor
 
-A = zeros(length(t), 4);
+A = zeros(length(t), 3);
 
 Vb = zeros(length(t), 3);
 Vbz = zeros(length(t), 1);
@@ -124,9 +124,9 @@ for i=1:1:length(t)
     Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
     avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
     avgRpmMean(i) = sum(rpm(i,:)/4);
-    A(i, 1:4) = [avgRpmSq(i), ...
+    A(i, 1:3) = [avgRpmSq(i), ...
         avgRpmMean(i) * Vbz(i), ...
-        Vh(i,1), filt_a(i,3)];  %accel(i,3)
+        Vh(i,1)]; %, filt_a(i,3)];  %accel(i,3)
 end
 
 %% least sqaures time :) 
@@ -154,7 +154,7 @@ for i=idx
     
     newT(i,1) = [avgRpmSq(i), ...
         avgRpmMean(i) * Vbz(i), ...
-        Vh(i,1), filt_a(i,3)] * x;
+        Vh(i,1)] * x;  %filt_a(i,3)
 
 % doesn't work yet, bias should have less weight in the fit?
 %     newT(i,1) = [1,...
@@ -174,7 +174,7 @@ sprintf("rms of fit, less is good: %f", rms(eps))
 % smooth while deriving optiTrack accelerations
 figure;  
 histogram(eps, 'Normalization', 'pdf'); 
-title("rms of thrust model fit with accelerometer (non causal) is: " + num2str(rms(eps)));
+title("rms of thrust model fit without accmeter (causal) is: " + num2str(rms(eps)));
 %% 
 figure;
 oldActual = T;
@@ -252,13 +252,13 @@ for i = st-1:1:length(t)
     Vbz(i) = Vb(i,3); 
     Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
    
-    newT(i,1) = [avgRpmSq(i), ...
-    avgRpmMean(i) * Vbz(i), ...
-    Vh(i,1), filt_a(i,3)] * x;
+%     newT(i,1) = [avgRpmSq(i), ...
+%     avgRpmMean(i) * Vbz(i), ...
+%     Vh(i,1), filt_a(i,3)] * x;
 
     % x(2) is already accounted for in a_body vector
-    newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
-    
+    % newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
+    newnewT(i,1) = [avgRpmSq(i), Vh(i,1)] * [x(1); x(3)];
     thr_axis = newnewT(i,1); 
     acc_t = ([0;0;9.81] + R'* ([0;0; thr_axis] + [a_body(1); a_body(2); a_body(3)]))';
     
@@ -352,9 +352,9 @@ hold on; grid on;
 plot(t, acc_w(:,3)); 
 legend('gt', 'estimator'); xlabel('time (s)'); ylabel('a_z (m/s^2)');
 
-saveas(posPlot, 'posPlot', 'epsc');
-saveas(velPlot, 'velPlot', 'epsc');
-saveas(accPlot, 'accPlot', 'epsc');
+% saveas(posPlot, 'posPlot', 'epsc');
+% saveas(velPlot, 'velPlot', 'epsc');
+% saveas(accPlot, 'accPlot', 'epsc');
 
 % a_body = alpha * a_body + (1 - alpha) * comp_acc(i,:); 
     % thr_axis = newT(i,1); 
