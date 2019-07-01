@@ -1,42 +1,41 @@
-%% TO find the psuedoaccelerations on body fixed frame
-% todo: yaw in the rotation matrix is it correct
+%% TO find drag co-efficients
 
 % Step1: PARSE FLIGHT DATA
 clc;
 close all;
 clear all;
-filename = '../logs/log_file_00013.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
-% ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
+% what worked for drag est, fits well for thrust model, also mean of acceleration is good
+filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);
-
-fid = fopen(filename);
-a = textscan(fid,'%s',1);
-C = strsplit(string(a),',');
-fclose(fid);
-
-% M = M(3072:20482, :); % yaw seems the reason of drift. Also, Moment model
-% in IMU filters seems to miss feedfoward terms, convering to gt takes
-% time?
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
 buf_a = accel;
 gyro  = M(:,5:7)./4096;  % INT32_RATE_FRAC
 angBody = M(:,8:10); % find out if these are from optitrack or not
-optiPos = M(:,11:13); % find out if using optiTrack height or not
-cmd_thrust = M(:,14);
+rateBody = M(:,11:13);
+
+optiPos = M(:,14:16); % find out if using optiTrack height or not
+cmd_thrust = M(:,17);
 % todo: yaw in the rotation matrix is it correct
 
-cmd_roll = M(:,15);
-cmd_pitch = M(:,16);
-cmd_yaw = M(:,17);
-rpm(:,1:4) = M(:,18:21);
+cmd_roll = M(:,18);
+cmd_pitch = M(:,19);
+cmd_yaw = M(:,20);
+rpm(:,1:4) = M(:,21:24);
 % rpm = rpm./max(max(rpm));
 rpm = rpm * 2 * 3.142 /60; % return prop speed in rad/s
 t = M(:,1)/512;
 t = t - t(1,1);
 dt = mean(gradient(t));
 g =  9.81;
+
+dr_state.x = M(:,25);
+dr_state.y = M(:,26);
+
+dr_cmd.roll  = M(:,27);
+dr_cmd.pitch = M(:,28);
+
 
 %% calc opti x, xd, xdd
 st = 400;
@@ -53,7 +52,8 @@ T = thrustMatch(angBody, optiAcc, filt_a, t);
 rpmAvg = mean(rpm,2);
 % rpmAvg = ones(size(rpm));
 [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc, optiVel, rpmAvg, t);
-
+% to note: the signs of kdx2 and kdx3 are different since kdx2 is scaled by
+% rpm (+ve) and kdx3 is scaled by thrust (-ve)
 %% or read from old dataset to prevent overfitting
 rpmAvg = mean(rpm,2);
 [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = readDragCo();

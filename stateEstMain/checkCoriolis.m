@@ -61,7 +61,7 @@ rpmAvg = mean(rpm,2);
 [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc, optiVel, rpmAvg, t);
 
 %% or read from old dataset to prevent overfitting
-rpmAvg = mean(rpm,2);
+% rpmAvg = mean(rpm,2);
 [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = readDragCo();
 
 %% compensate before yawing

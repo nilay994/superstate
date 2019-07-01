@@ -1,5 +1,5 @@
-%% TO find the psuedoaccelerations on body fixed frame
-% todo: yaw in the rotation matrix is it correct
+%% TO find the thrust and convergent VBZ and z position estimates
+% two methods: use accelerometer non causal or not
 
 % Step1: PARSE FLIGHT DATA
 clc;
@@ -12,7 +12,6 @@ M = csvread(filename, 1, 0);
 col = size(M,2);
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
-buf_a = accel;
 gyro  = M(:,5:7)./4096;  % INT32_RATE_FRAC
 angBody = M(:,8:10); % find out if these are from optitrack or not
 rateBody = M(:,11:13);
@@ -103,8 +102,7 @@ Vb = zeros(length(t), 3);
 Vbz = zeros(length(t), 1);
 Vh = zeros(length(t), 1);
 
-% Ab = zeros(length(t), 3);
-% rmsVb = zeros(length(t), 1);
+
 avgRpmSq = zeros(length(t), 1);
 avgRpmMean =  zeros(length(t), 1);
 
@@ -122,7 +120,6 @@ for i=1:1:length(t)
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
   
     Vb(i,1:3) = R * optiVel(i,:)';
-    % Ab(i,1:3) = R * optiAcc(i,:)';
     Vbz(i) = Vb(i,3); 
     Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
     avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
@@ -177,6 +174,7 @@ sprintf("rms of fit, less is good: %f", rms(eps))
 % smooth while deriving optiTrack accelerations
 figure;  
 histogram(eps, 'Normalization', 'pdf'); 
+title("rms of thrust model fit with accelerometer (non causal) is: " + num2str(rms(eps)));
 %% 
 figure;
 oldActual = T;
@@ -218,9 +216,10 @@ pos_w3(1:st,:) = optiPos(1:st,:);
 vel_w3(1:st,:) = optiVel(1:st,:);
 
 newnewT = zeros(length(t), 1);
+newnewT(1:st,1) = optiAcc(1:st, 3);
 
-avgRpmSq = zeros(length(t), 1);
-avgRpmMean =  zeros(length(t), 1);
+% avgRpmSq = zeros(length(t), 1);
+% avgRpmMean =  zeros(length(t), 1);
 
 for i = st-1:1:length(t)
     
@@ -241,11 +240,11 @@ for i = st-1:1:length(t)
       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
 
-    avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
-    avgRpmMean(i) = sum(rpm(i,:)/4);
+%     avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
+%     avgRpmMean(i) = sum(rpm(i,:)/4);
   
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
-    kd = rpmAvg(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 -x(2)]; % depends on x??!
+    kd = avgRpmMean(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 -x(2)]; 
     a_body = (kd * R * vel_w(i-1, 1:3)')';
        
     % Vb(i,1:3) = R * optiVel(i,:)';
@@ -258,7 +257,7 @@ for i = st-1:1:length(t)
     Vh(i,1), filt_a(i,3)] * x;
 
     % x(2) is already accounted for in a_body vector
-    newnewT(i,1) = [avgRpm(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
+    newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
     
     thr_axis = newnewT(i,1); 
     acc_t = ([0;0;9.81] + R'* ([0;0; thr_axis] + [a_body(1); a_body(2); a_body(3)]))';

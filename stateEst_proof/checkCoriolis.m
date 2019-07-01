@@ -1,15 +1,12 @@
-%% TO find the psuedoaccelerations on body fixed frame
-% todo: yaw in the rotation matrix is it correct
+%% state estimation main
+
 
 % Step1: PARSE FLIGHT DATA
 clc;
 close all;
 clear all;
 
-%% 
-% filename = '../logs/2019-06-24_14_59_20.csv'; 
 filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';
-% ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
 M = csvread(filename, 1, 0);
 col = size(M,2);
 
@@ -21,7 +18,6 @@ rateBody = M(:,11:13);
 
 optiPos = M(:,14:16);
 cmd_thrust = M(:,17);
-% todo: yaw in the rotation matrix is it correct
 
 cmd_roll = M(:,18);
 cmd_pitch = M(:,19);
@@ -34,6 +30,11 @@ t = t - t(1,1);
 dt = mean(gradient(t));
 g =  9.81;
 
+dr_state.x = M(:,25);
+dr_state.y = M(:,26);
+
+dr_cmd.roll  = M(:,27);
+dr_cmd.pitch = M(:,28);
 
 
 %% calc opti x, xd, xdd
