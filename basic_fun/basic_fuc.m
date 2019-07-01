@@ -6,7 +6,7 @@ close all;
 clear all;
 
 %
-filename = '/home/nilay/Downloads/2019-06-27_17_22_54.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
+filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
 % ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
 M = csvread(filename, 1, 0);
 col = size(M,2);
@@ -100,15 +100,21 @@ for i = (st-2):1:length(t)
     acc_w(i,3) = acc_t(3);
     
     vel_w(i,1:3) = vel_w(i-1,1:3) + (acc_w(i,1:3) .* dt);
-    pos_w(i,1:3) = pos_w(i-1,1:3) + (vel_w(i,1:3) .* dt);
+    pos_w(i,1:3) = pos_w(i-1,1:3) + (vel_w(i,1:3) .* dt) + 0.5 * acc_w(i,1:3) * dt^2;
     
 end
 
-
-
 %% TODO: check sanity of optiTrack integrate back, which will tell you what your thrust model should be giving out. 
 % what you see currently might not be the thrust but something else - which
-
+figure;
+plot(t, optiPos(:,3)); hold on;
+plot(t, pos_w(:,3));
+figure;
+plot(t, optiPos(:,2)); hold on;
+plot(t, pos_w(:,2));
+figure;
+plot(t, optiPos(:,1)); hold on;
+plot(t, pos_w(:,1));
 
 
 % is scary. it might be some drag thing or some velBody thing

@@ -7,27 +7,19 @@ close all;
 clear all;
 
 %% 
-filename = '../logs/2019-06-24_14_59_20.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
+% filename = '../logs/2019-06-24_14_59_20.csv'; 
+filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';
 % ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
 M = csvread(filename, 1, 0);
 col = size(M,2);
 
-% fid = fopen(filename);
-% a = textscan(fid,'%s',1);
-% C = strsplit(string(a),',');
-% fclose(fid);
-
-% M = M(3072:20482, :); % yaw seems the reason of drift. Also, Moment model
-% in IMU filters seems to miss feedfoward terms, convering to gt takes
-% time?
-
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
 buf_a = accel;
 gyro  = M(:,5:7)./4096;  % INT32_RATE_FRAC
-angBody = M(:,8:10); % find out if these are from optitrack or not
+angBody = M(:,8:10); 
 rateBody = M(:,11:13);
 
-optiPos = M(:,14:16); % find out if using optiTrack height or not
+optiPos = M(:,14:16);
 cmd_thrust = M(:,17);
 % todo: yaw in the rotation matrix is it correct
 

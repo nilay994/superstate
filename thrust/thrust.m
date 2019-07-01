@@ -6,7 +6,8 @@ clc;
 close all;
 clear all;
 % what worked for drag est, fits well for thrust model, also mean of acceleration is good
-filename = '../logs/2019-06-24_14_29_46.csv'; 
+% filename = '../logs/2019-06-24_14_29_46.csv'; 
+filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);
 
@@ -30,6 +31,12 @@ t = M(:,1)/512;
 t = t - t(1,1);
 dt = mean(gradient(t));
 g =  9.81;
+
+dr_state.x = M(:,25);
+dr_state.y = M(:,26);
+
+dr_cmd.roll  = M(:,27);
+dr_cmd.pitch = M(:,28);
 
 %% calc optiTrack data: 
 % NOTE: using smooth creates jumps at the head and the tail of the vector 
@@ -90,7 +97,7 @@ filt_a(:,3) = lsim(filter_acc, compensated_acc(:,3), t);
 % y = abs(T)./max(max(abs(T)));
 %% least squares to the rescue in progress thrust predictor
 
-A = zeros(length(t), 3);
+A = zeros(length(t), 4);
 
 Vb = zeros(length(t), 3);
 Vbz = zeros(length(t), 1);
@@ -98,8 +105,8 @@ Vh = zeros(length(t), 1);
 
 % Ab = zeros(length(t), 3);
 % rmsVb = zeros(length(t), 1);
-avgRpm = zeros(length(t), 1);
-
+avgRpmSq = zeros(length(t), 1);
+avgRpmMean =  zeros(length(t), 1);
 
 % minimize cost function, thanks to linear models
 for i=1:1:length(t)
@@ -118,27 +125,12 @@ for i=1:1:length(t)
     % Ab(i,1:3) = R * optiAcc(i,:)';
     Vbz(i) = Vb(i,3); 
     Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
-    avgRpm(i) = (sum(rpm(i,:))/4)^2;
-    
-    A(i, 1:3) = [avgRpm(i), ...
-        (sum(rpm(i,:)/4)*Vbz(i)), ...
-        Vh(i,1)];%, filt_a(i,3)];  %accel(i,3)
+    avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
+    avgRpmMean(i) = sum(rpm(i,:)/4);
+    A(i, 1:4) = [avgRpmSq(i), ...
+        avgRpmMean(i) * Vbz(i), ...
+        Vh(i,1), filt_a(i,3)];  %accel(i,3)
 end
-
-%% plot everything before lsq
-figure;
-subplot(4,1,1);
-plot(t, y);
-title('normalized thrust');
-subplot(4,1,2);
-plot(t, avgRpm);
-title('averaged rpm');
-subplot(4,1,3);
-plot(t, Vh);
-title('horizontal velocity');
-subplot(4,1,4);
-plot(t, Vbz);
-title('vertical velocity');
 
 %% least sqaures time :) 
 x = A\T
@@ -163,9 +155,9 @@ for i=idx
   
     Vb = R * optiVel(i,:)';
     
-    newT(i,1) = [avgRpm(i), ...
-        (sum(rpm(i,:)/4)*Vbz(i)), ...
-        Vh(i,1)] * x;
+    newT(i,1) = [avgRpmSq(i), ...
+        avgRpmMean(i) * Vbz(i), ...
+        Vh(i,1), filt_a(i,3)] * x;
 
 % doesn't work yet, bias should have less weight in the fit?
 %     newT(i,1) = [1,...
@@ -199,7 +191,7 @@ title('compare fit');
 
 %% 
 
-st = 400;
+st = 5000;
 
 newThr = zeros(length(t), 3);
 oldThr = zeros(length(t), 3);
@@ -225,11 +217,16 @@ vel_w2(1:st,:) = optiVel(1:st,:);
 pos_w3(1:st,:) = optiPos(1:st,:);
 vel_w3(1:st,:) = optiVel(1:st,:);
 
-for i = st:1:length(t)
+newnewT = zeros(length(t), 1);
+
+avgRpmSq = zeros(length(t), 1);
+avgRpmMean =  zeros(length(t), 1);
+
+for i = st-1:1:length(t)
     
     phi   = angBody(i,1);
     theta = angBody(i,2);
-    psi   = angBody(i,3)  - 0.7/3.5;
+    psi   = angBody(i,3);%  - 0.7/3.5;
     
     if rem(i,round(length(t)/5)) == 0 
 %         pos_w(i-1:i,:)  = optiPos(i-1:i,:);        
@@ -243,11 +240,28 @@ for i = st:1:length(t)
       sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi) sin(phi)*cos(theta);...
       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
+
+    avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
+    avgRpmMean(i) = sum(rpm(i,:)/4);
   
-    oldThr(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
-    somvar = cross(rateBody(i, :)', (R * optiVel(i,:)')');
-    oldThr(i,3) = newRemap(i) -  2 * somvar(3);
-    acc_t = [0;0;9.81] + R'* oldThr(i,:)';
+    % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
+    kd = rpmAvg(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 -x(2)]; % depends on x??!
+    a_body = (kd * R * vel_w(i-1, 1:3)')';
+       
+    % Vb(i,1:3) = R * optiVel(i,:)';
+    Vb(i,1:3) = R * vel_w(i-1,1:3)';
+    Vbz(i) = Vb(i,3); 
+    Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
+   
+    newT(i,1) = [avgRpmSq(i), ...
+    avgRpmMean(i) * Vbz(i), ...
+    Vh(i,1), filt_a(i,3)] * x;
+
+    % x(2) is already accounted for in a_body vector
+    newnewT(i,1) = [avgRpm(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
+    
+    thr_axis = newnewT(i,1); 
+    acc_t = ([0;0;9.81] + R'* ([0;0; thr_axis] + [a_body(1); a_body(2); a_body(3)]))';
     
     acc_w(i,1) = acc_t(1);
     acc_w(i,2) = acc_t(2);
@@ -266,97 +280,87 @@ figure;
 
 plot3(pos_w(:,1), pos_w(:,2), pos_w(:,3)); 
 axis equal; hold on; grid on;
-% plot3(pos_w2(:,1), pos_w2(:,2), pos_w2(:,3));
-% plot3(pos_w3(:,1), pos_w3(:,2), pos_w3(:,3));
 plot3(optiPos(:,1), optiPos(:,2), optiPos(:,3));
-legend('filter1', 'filter2', 'filter3', 'gt'); 
+legend('estimator', 'gt'); 
 xlabel('x (m)'); ylabel('y (m)'); zlabel('z (m)');
 
 top = figure; 
 plot(pos_w(:,1), pos_w(:,2)); 
 axis equal; hold on; grid on;
-% plot(pos_w2(:,1), pos_w2(:,2));
-% plot(pos_w3(:,1), pos_w3(:,2));
 plot(optiPos(:,1), optiPos(:,2));
-legend('filter1', 'filter2', 'filter3', 'gt'); 
+legend('estimator', 'gt'); 
 xlabel('x (m)'); ylabel('y (m)')
 text(optiPos(1,1), optiPos(1,2), 'start');
 text(optiPos(end,1), optiPos(end,2), 'end');
 
-posPlot = figure;
+posPlot = figure('Position', get(0, 'Screensize'));
 sgtitle('position');
 subplot(3,1,1);
 plot(t, pos_w(:,1)); 
 hold on; grid on; 
-% plot(t, pos_w2(:,1));
-% plot(t, pos_w3(:,1));
-plot(t, optiPos(:,1));
-legend('filter1', 'filter2','filter3','gt'); xlabel('time (s)'); ylabel('x (m)');
 
+plot(t, optiPos(:,1));
+legend('estimator','gt'); xlabel('time (s)'); ylabel('x (m)');
 subplot(3,1,2);
 plot(t, pos_w(:,2)); 
 hold on; grid on; 
-% plot(t, pos_w2(:,2));
-% plot(t, pos_w3(:,2));
 plot(t, optiPos(:,2));
-legend('filter1', 'filter2', 'filter3','gt'); xlabel('time (s)'); ylabel('y (m)');
+legend('estimator', 'gt'); xlabel('time (s)'); ylabel('y (m)');
 
 subplot(3,1,3);
 plot(t, pos_w(:,3)); 
 hold on; grid on; 
-% plot(t, pos_w2(:,3));
-% plot(t, pos_w3(:,3));
 plot(t, optiPos(:,3));
-legend('filter1', 'filter2', 'filter3','gt'); xlabel('time (s)'); ylabel('z (m)');
+legend('estimator','gt'); xlabel('time (s)'); ylabel('z (m)');
 
-velPlot = figure;
+velPlot = figure('Position', get(0, 'Screensize'));
 sgtitle('lateral velocity');
 subplot(3,1,1);
 plot(t, vel_w(:,1)); 
 hold on; grid on; 
-% plot(t, vel_w2(:,1));
-% plot(t, vel_w3(:,1));
 plot(t, optiVel(:,1));
-legend('filter1', 'filter2', 'filter3', 'gt'); xlabel('time (s)'); ylabel('v_x (m/s)');
+legend('estimator', 'gt'); xlabel('time (s)'); ylabel('v_x (m/s)');
 
 subplot(3,1,2);
 plot(t, vel_w(:,2)); 
 hold on; grid on; 
-% plot(t, vel_w2(:,2));
-% plot(t, vel_w3(:,2));
 plot(t, optiVel(:,2));
-legend('filter1', 'filter2', 'filter3', 'gt'); xlabel('time (s)'); ylabel('v_y (m/s)');
+legend('estimator', 'gt'); xlabel('time (s)'); ylabel('v_y (m/s)');
 
 subplot(3,1,3);
 plot(t, vel_w(:,3)); 
 hold on; grid on; 
-% plot(t, vel_w2(:,3));
-% plot(t, vel_w3(:,3));
 plot(t, optiVel(:,3));
-legend('filter1', 'filter2', 'filter3', 'gt'); xlabel('time (s)'); ylabel('v_z (m/s)');
+legend('estimator', 'gt'); xlabel('time (s)'); ylabel('v_z (m/s)');
 
-accPlot = figure;
+accPlot = figure('Position', get(0, 'Screensize'));
 sgtitle('acceleration');
 subplot(3,1,1);
 plot(t, optiAcc(:,1));
 hold on; grid on;
 plot(t, acc_w(:,1)); 
-% plot(t, acc_w2(:,1));
-% plot(t, acc_w3(:,1));
-legend('gt', 'filter1', 'filter2', 'filter3'); xlabel('time (s)'); ylabel('a_x (m/s^2)');
+legend('gt', 'estimator'); xlabel('time (s)'); ylabel('a_x (m/s^2)');
 
 subplot(3,1,2);
 plot(t, optiAcc(:,2));
 hold on; grid on;
 plot(t, acc_w(:,2));
-% plot(t, acc_w2(:,2));
-% plot(t, acc_w3(:,2));
-legend('gt','filter1', 'filter2', 'filter3'); xlabel('time (s)'); ylabel('a_y (m/s^2)');
+legend('gt','estimator'); xlabel('time (s)'); ylabel('a_y (m/s^2)');
 
 subplot(3,1,3);
 plot(t, optiAcc(:,3));
 hold on; grid on;
 plot(t, acc_w(:,3)); 
-% plot(t, acc_w2(:,3));
-% plot(t, acc_w3(:,3));
-legend('gt','filter1', 'filter2', 'filter3'); xlabel('time (s)'); ylabel('a_z (m/s^2)');
+legend('gt', 'estimator'); xlabel('time (s)'); ylabel('a_z (m/s^2)');
+
+saveas(posPlot, 'posPlot', 'epsc');
+saveas(velPlot, 'velPlot', 'epsc');
+saveas(accPlot, 'accPlot', 'epsc');
+
+% a_body = alpha * a_body + (1 - alpha) * comp_acc(i,:); 
+    % thr_axis = newT(i,1); 
+    % thr_axis = alpha * (-9.81/((cos(theta)  * cos(phi))) + 0.5 * bodyVel(3)) + (1-alpha) * comp_acc(i,3);
+    % do a simple compl between hover and kumar thrust model
+    % thr_axis = -9.81/(cos(theta) * cos(phi)) + 0.5 * bodyVel(3);
+    % thr_axis = -9.81/(cos(theta) * cos(phi)) + 0.15 * rssq(R * [optiVel(i,1); optiVel(i,2); 0]);
+    
