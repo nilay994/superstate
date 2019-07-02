@@ -7,10 +7,10 @@ close all;
 clear all;
 % what worked for drag est, fits well for thrust model, also mean of acceleration is good
 % filename = '../logs/2019-06-24_14_29_46.csv'; 
-filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';
+filename = '/home/nilay/Downloads/2019-07-02_13_20_10.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);
-
+% M = M(40000:50000, :);
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
 gyro  = M(:,5:7)./4096;  % INT32_RATE_FRAC
 angBody = M(:,8:10); % find out if these are from optitrack or not
@@ -37,11 +37,13 @@ dr_state.y = M(:,26);
 dr_cmd.roll  = M(:,27);
 dr_cmd.pitch = M(:,28);
 
+[kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = readDragCo();
+
 %% calc optiTrack data: 
 % NOTE: using smooth creates jumps at the head and the tail of the vector 
 % if a cropped flight data is used. 
 % (cropped flight data is essential for thrust modelling, no one is starting and stopping logs for me in hover position)
-windowSize = 150; 
+windowSize = 40; 
 b = (1/windowSize)*ones(1,windowSize);
 a = 1;
 
@@ -98,20 +100,20 @@ filt_a(:,3) = lsim(filter_acc, compensated_acc(:,3), t);
 
 A = zeros(length(t), 3);
 
-Vb = zeros(length(t), 3);
+Vb  = zeros(length(t), 3);
 Vbz = zeros(length(t), 1);
-Vh = zeros(length(t), 1);
+Vh  = zeros(length(t), 1);
 
 
-avgRpmSq = zeros(length(t), 1);
-avgRpmMean =  zeros(length(t), 1);
+avgRpmSq   = zeros(length(t), 1);
+avgRpmMean = zeros(length(t), 1);
 
 % minimize cost function, thanks to linear models
 for i=1:1:length(t)
     
-    phi = angBody(i,1);
+    phi   = angBody(i,1);
     theta = angBody(i,2);
-    psi = angBody(i,3);
+    psi   = angBody(i,3);
     
     R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
       sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi)...
@@ -126,7 +128,7 @@ for i=1:1:length(t)
     avgRpmMean(i) = sum(rpm(i,:)/4);
     A(i, 1:3) = [avgRpmSq(i), ...
         avgRpmMean(i) * Vbz(i), ...
-        Vh(i,1)]; %, filt_a(i,3)];  %accel(i,3)
+        Vh(i,1)];  %accel(i,3) filt_a(i,3)
 end
 
 %% least sqaures time :) 
@@ -153,8 +155,8 @@ for i=idx
     Vb = R * optiVel(i,:)';
     
     newT(i,1) = [avgRpmSq(i), ...
-        avgRpmMean(i) * Vbz(i), ...
-        Vh(i,1)] * x;  %filt_a(i,3)
+        - avgRpmMean(i) * Vbz(i), ...
+        - Vh(i,1)] * x;  % , filt_a(i,3)
 
 % doesn't work yet, bias should have less weight in the fit?
 %     newT(i,1) = [1,...
@@ -181,15 +183,14 @@ oldActual = T;
 newRemap = newT;
 plot(t, oldActual); hold on; grid on;
 plot(t, newRemap);
-plot(t, T);
 % plot(t, filt_a(:,3));
-legend('oldActual', 'newRemap', 'T');
+legend('oldActual', 'newRemap');
 title('compare fit');
 
 
 %% 
 
-st = 5000;
+st = 200;
 
 newThr = zeros(length(t), 3);
 oldThr = zeros(length(t), 3);
@@ -208,12 +209,7 @@ pos_w3 = zeros(length(t), 3);
 
 pos_w(1:st,:) = optiPos(1:st,:);
 vel_w(1:st,:) = optiVel(1:st,:);
-
-pos_w2(1:st,:) = optiPos(1:st, :);
-vel_w2(1:st,:) = optiVel(1:st,:);
-
-pos_w3(1:st,:) = optiPos(1:st,:);
-vel_w3(1:st,:) = optiVel(1:st,:);
+acc_w(1:st,:) = optiAcc(1:st,:);
 
 newnewT = zeros(length(t), 1);
 newnewT(1:st,1) = optiAcc(1:st, 3);
@@ -240,16 +236,16 @@ for i = st-1:1:length(t)
       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
 
-%     avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
-%     avgRpmMean(i) = sum(rpm(i,:)/4);
+    avgRpmSq(i) = (sum(rpm(i,:))/4)^2;
+    avgRpmMean(i) = sum(rpm(i,:)/4);
   
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
     kd = avgRpmMean(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 -x(2)]; 
-    a_body = (kd * R * vel_w(i-1, 1:3)')';
+     % Vbz(i) = Vb(i,3);
+    a_body = (kd * R * vel_w(i-1, 1:3)');
        
     % Vb(i,1:3) = R * optiVel(i,:)';
-    Vb(i,1:3) = R * vel_w(i-1,1:3)';
-    Vbz(i) = Vb(i,3); 
+    Vb(i,1:3) = R * vel_w(i-1, 1:3)';
     Vh(i,1) = (Vb(i,1)^2 + Vb(i,2)^2); 
    
 %     newT(i,1) = [avgRpmSq(i), ...
@@ -257,9 +253,12 @@ for i = st-1:1:length(t)
 %     Vh(i,1), filt_a(i,3)] * x;
 
     % x(2) is already accounted for in a_body vector
-    % newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1); x(3); x(4)];
+    %newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1)*1.05; x(3)/2; x(4)];
     newnewT(i,1) = [avgRpmSq(i), Vh(i,1)] * [x(1); x(3)];
-    thr_axis = newnewT(i,1); 
+    % this signifies thrust increases while descending and decreases while
+    % going forward? Which is untrue??
+    % thr_axis = alpha * newnewT(i,1) + (1-alpha) * (-9.81/(cos(theta * 0.85) * cos(phi * 0.85))); 
+    thr_axis = newnewT(i,1);
     acc_t = ([0;0;9.81] + R'* ([0;0; thr_axis] + [a_body(1); a_body(2); a_body(3)]))';
     
     acc_w(i,1) = acc_t(1);
@@ -297,9 +296,9 @@ sgtitle('position');
 subplot(3,1,1);
 plot(t, pos_w(:,1)); 
 hold on; grid on; 
-
 plot(t, optiPos(:,1));
 legend('estimator','gt'); xlabel('time (s)'); ylabel('x (m)');
+
 subplot(3,1,2);
 plot(t, pos_w(:,2)); 
 hold on; grid on; 
