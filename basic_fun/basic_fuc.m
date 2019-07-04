@@ -6,7 +6,7 @@ close all;
 clear all;
 
 %
-filename = '/home/nilay/Downloads/2019-07-01_14_34_31.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
+filename = '/home/nilay/Downloads/2019-07-02_13_20_10.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
 % ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
 M = csvread(filename, 1, 0);
 col = size(M,2);
@@ -64,10 +64,13 @@ filt_a(:,2) = lsim(filter_acc, accel(:,2), t);
 filt_a(:,3) = lsim(filter_acc, accel(:,3), t);
 
 st = 2;
-[filt_a, optiAcc, optiVel]= optiData(optiPos, accel, t, dt, 150, st);
+% [filt_a, optiAcc, optiVel]= optiData(optiPos, accel, t, dt, 150, st);
 %% check if thrust matches (in case of incorrect altitude pprz) 
 T = thrustMatch(angBody, optiAcc, filt_a, t);
 
+
+
+%%
 acc_w = zeros(length(t), 3);
 vel_w = zeros(length(t), 3);
 pos_w = zeros(length(t), 3);
@@ -79,7 +82,7 @@ vel_w(1:st,:) = optiVel(1:st,:);
 velBody = zeros(length(t), 3);
 newT = zeros(length(t), 1);
 % check what happens with velbody
-for i = (st-2):1:length(t)
+for i = 2:1:length(t)
     
     phi = angBody(i,1);
     theta = angBody(i,2);
@@ -92,8 +95,13 @@ for i = (st-2):1:length(t)
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
     
     velBody(i,1:3) = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)])'; % laterals shouldn't be zero
+    vh = velBody(i,1).^2 + velBody(i,2).^2;
     % newT(i,1) = T(i) +  * rssq([velBody(i,1),velBody(i,2)])^2; % time to match with body z (accelerometer)
     a_body = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)]);
+    % not sure why this is needed here!! optiTrack's accelerations can't be
+    % biased. Is the smooth filter introducing somebias? Yes it was! Use
+    % your own filter in this case
+    
     acc_t = ([0;0;9.81] + R' * [a_body(1); a_body(2); a_body(3)])';
     acc_w(i,1) = acc_t(1);
     acc_w(i,2) = acc_t(2);
@@ -107,14 +115,20 @@ end
 %% TODO: check sanity of optiTrack integrate back, which will tell you what your thrust model should be giving out. 
 % what you see currently might not be the thrust but something else - which
 figure;
-plot(t, optiPos(:,3)); hold on;
-plot(t, pos_w(:,3));
-figure;
-plot(t, optiPos(:,2)); hold on;
-plot(t, pos_w(:,2));
-figure;
-plot(t, optiPos(:,1)); hold on;
-plot(t, pos_w(:,1));
 
+subplot(1,3,1);
+plot(t, optiPos(:,1)); hold on;
+plot(t, pos_w(:,1)); grid on;
+title('x'); legend('gt', 'estimated');
+
+subplot(1,3,2);
+plot(t, optiPos(:,2)); hold on;
+plot(t, pos_w(:,2));grid on;
+title('y'); legend('gt', 'estimated');
+
+subplot(1,3,3);
+plot(t, optiPos(:,3)); hold on;
+plot(t, pos_w(:,3));grid on;
+title('z'); legend('gt', 'estimated');
 
 % is scary. it might be some drag thing or some velBody thing

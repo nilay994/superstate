@@ -21,21 +21,21 @@ v = zeros(len,2);
 % vd = [5, 0];
 % cyberzoo
 xd = [0, 0];
-vd = [3, 0];
+vd = [2, 0];
 
 % initialize
 % test3
 % x(1,:) = [-24, 5];
 % v(1,:) = [2, 0];
 % cyberzoo
-x(1,:) = [-5.5, -2];
+x(1,:) = [-4.5, -2.5];
 v(1,:) = [0, 0];
 
 % Gains
 K_ff_theta = 14/57 / 5;   % rad to fly at (e.g. 10 deg = 5 m/s)
 K_p_v = 1;
 K_p_theta = 6 / 57;       % m/s to radians
-maxbank = 45 / 57;
+maxbank = 25 / 57;
 
 x0 = x(1,:);
 v0 = v(1,:);

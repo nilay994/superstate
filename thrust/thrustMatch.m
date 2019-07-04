@@ -20,7 +20,7 @@ for i = 1:1:length(t)
       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
     
-    thrust_temp = R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)]; % laterals shouldn't be zero
+    thrust_temp = R * [optiAcc(i,1); optiAcc(i,2); (-9.81 + optiAcc(i,3))]; % laterals shouldn't be zero
     T(i,1) = thrust_temp(3); % time to match with body z (accelerometer)
     
 end
@@ -29,6 +29,7 @@ end
 figure; 
 plot(t, filt_a(:,3)); hold on; grid on;
 plot(t, T(:,1));
+plot(t, -9.81 * ones(length(t),1));
 legend('filtered_{az}', 'rotated optiAcc to thrust');
 xlabel('time');
 ylabel('a_z (m/s^2)');

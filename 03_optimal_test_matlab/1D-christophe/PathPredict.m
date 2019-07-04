@@ -11,7 +11,7 @@ function [cost, xt, vt] = PathPredict(x0, v0, xd, vd, param)
     dt = 1/100;
     t = 0;
 
-    maxbank = 45 / 57;
+    maxbank = 25 / 57;
     K_ff_theta = 14/57 / 5;   % rad to fly at (e.g. 10 deg = 5 m/s)
     K_p_theta = 6 / 57;       % m/s to radians
     
@@ -23,7 +23,7 @@ function [cost, xt, vt] = PathPredict(x0, v0, xd, vd, param)
     p_max = (400 / 57) * 0.001;
     
     % Predict until after passing the gate, WARNING, Direction sensitive
-    while ((x(1) - xd(1)) < 0.1 * -sign(x0(1)-xd(1)))
+    while ((x(1) - xd(1)) < 0.001 * -sign(x0(1)-xd(1)))
 
         % Control
         theta = (vd(1) - v(1)) * K_p_theta + vd(1) .* K_ff_theta; 

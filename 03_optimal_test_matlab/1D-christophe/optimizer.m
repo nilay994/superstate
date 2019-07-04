@@ -12,13 +12,13 @@ function [phi0, phi1, t1] = optimizer(x0, v0, xd, vd)
     phi0 = 0;
     phi1 = 0;
     
-    maxbank = 35 / 57;
+    maxbank = 25 / 57;
 
     dphi0 = 4/57;
     dphi1 = 4/57;
     
     % Gradient descend
-    for i=1:1000
+    for i=1:200
         disp([' ------------ Iteration ---------- ' num2str(i)])
         
         % Ref

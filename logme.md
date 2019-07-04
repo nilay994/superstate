@@ -12,6 +12,10 @@
 2019-06-24_14_59_20.csv - 2x 90 deg - this was with 0.8, need to replot for without 0.8
 2019-06-24_14_29_46.csv - agile push, vbz vbh
 
+2019-07-01_14_34_31.csv - july agile push for thrust
+2019-07-03_13_26_13.csv - july 90 turn, good altitude, use thrust.m
+thruststate2woacc-super.mat has really good thrust fits, use x(3) -ve since somehow it is positive while training wtff!!
+
 
 # required logs: 
 longer slower is fine, need high resolution time
