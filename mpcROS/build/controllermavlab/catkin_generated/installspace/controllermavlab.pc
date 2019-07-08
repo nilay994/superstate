@@ -1,8 +1,0 @@
-prefix=/home/mavlab/develop/superstate/mpcROS/install
-
-Name: controllermavlab
-Description: Description of controllermavlab
-Version: 0.0.0
-Cflags: -I/home/mavlab/develop/superstate/mpcROS/install/include
-Libs: -L/home/mavlab/develop/superstate/mpcROS/install/lib 
-Requires: roscpp std_msgs mav_msgs sensor_msgs geometry_msgs tf2 tf2_ros
