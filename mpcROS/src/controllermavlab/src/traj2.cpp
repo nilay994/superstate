@@ -479,7 +479,7 @@ void traj_calc(double pos[3], double vel[3], double psi0, Eigen::MatrixXd& theta
 {
 	double t0 = 0;
 	int n = 3 ;
-	double avgvel = 8 ;
+	double avgvel = 4;
 
 	Eigen::MatrixXd x, y, z, psi ;
 	x.resize(1,n+1);
@@ -502,7 +502,7 @@ void traj_calc(double pos[3], double vel[3], double psi0, Eigen::MatrixXd& theta
 	initvel.psid = 0;
 
 
-	int freq = 100;
+	int freq = 960;
 	param.g = 9.81;
 	Eigen::MatrixXd pos2_p, pos2_pd, pos2_pd2, pos2_pd4, t;
 	

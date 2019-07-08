@@ -80,7 +80,7 @@ void keyboard_cb(const mav_msgs::RateThrust &command)
 		Eigen::MatrixXd fz1;
 		double pos[3] = {x_est, y_est, z_est};
 		double vel[3] = {xVel_est, yVel_est, zVel_est};
-		double psi0 = 0;
+		double psi0 = 0.0;
     	traj_calc(pos, vel, psi0, theta, phi2, fz1);
 		N = theta.cols();
 		printf("size of N: %d \n", N);
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	// publish to control loop commands in controllermavlab
-  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 100);
+  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 20);
 
 	ros::Subscriber keyboard_sub;
 	ros::Subscriber gt_sub;
@@ -116,7 +116,7 @@ int main(int argc, char** argv)
 	cout << " Hotstart length: " << theta.cols() << endl;
 
 
-	ros::Rate loop_rate(100);
+	ros::Rate loop_rate(960);
 	int i = 0;
 	while(ros::ok()) {
 		mav_msgs::RateThrust opt_cmd;
@@ -125,10 +125,12 @@ int main(int argc, char** argv)
 			opt_cmd.angular_rates.y = phi2(i);
 			opt_cmd.angular_rates.z = 0;
 			//opt_cmd.thrust.z = fz1(i);
-			opt_cmd.thrust.z =  9.81 / ((cos(phi2(i))) * (cos(theta(i)))); //sqrt(pow(fz1(0,i),2) + pow(fz1(1,i),2) + pow(fz1(2,i),2));//
+			opt_cmd.thrust.z = 9.81 / ((cos(phi2(i))) * (cos(theta(i))));//sqrt(pow(fz1(0,i),2) + pow(fz1(1,i),2) + pow(fz1(2,i),2));  //  
 			optimalcmd_pub.publish(opt_cmd);
 			// cout << "roll: " << phi2(i) * 180/3.142 << ", pitch: " << theta(i) * 180/3.142 << endl;
-			cout << fz1(i) << endl;
+			// cout << fz1(i) << endl;
+			printf("i:%d, N:%d\n", i, N);
+			
 			i++; 
 		}
 		if (i > N-1) {
@@ -141,6 +143,7 @@ int main(int argc, char** argv)
 			i = 0;
 			lock_optimal = 0;
 		}
+
 		loop_rate.sleep();
 		ros::spinOnce();
 	}

@@ -1,0 +1,8 @@
+prefix=/home/mavlab/develop/superstate/mpcROS/install
+
+Name: qpoases
+Description: Description of qpoases
+Version: 3.1.0
+Cflags: -I/home/mavlab/develop/superstate/mpcROS/install/include
+Libs: -L/home/mavlab/develop/superstate/mpcROS/install/lib -lqpoases
+Requires: roscpp

@@ -1,0 +1,2 @@
+controllermavlab:estimation:qpOASES:ransac
+-DCATKIN_DEVEL_PREFIX=/home/mavlab/develop/superstate/mpcROS/devel -DCMAKE_INSTALL_PREFIX=/home/mavlab/develop/superstate/mpcROS/install -G Unix Makefiles

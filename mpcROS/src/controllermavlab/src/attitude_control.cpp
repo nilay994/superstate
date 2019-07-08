@@ -85,7 +85,7 @@ attitudeNode::attitudeNode(ros::NodeHandle nh)
 {
   //rollPitchYawRateHeightRateCommand
   // keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, &attitudeNode::keyboard_cb, this);
-  optimalcmd_sub = nh.subscribe("/optimalcmd", 1000, &attitudeNode::optimalcmd_cb, this);
+  optimalcmd_sub = nh.subscribe("/optimalcmd", 20, &attitudeNode::optimalcmd_cb, this);
   gt_sub = nh.subscribe("/tf", 1000, &attitudeNode::gtCallback, this);
   imu_sub = nh.subscribe("/uav/sensors/imu", 1000, &attitudeNode::imu_cb, this);
 
@@ -159,7 +159,7 @@ void attitudeNode::optimalcmd_cb(const mav_msgs::RateThrust &cmd)
 	pitch_cmd   = cmd.angular_rates.y;  
 	yawRate_cmd = cmd.angular_rates.z;
 	thr_cmd     = cmd.thrust.z;
-  printf("in optimal_cb, roll_cmd: %f\n", roll_cmd * 180/3.142);
+  printf("in optimal_cb, roll_cmd: %f, pitch_cmd: %f\n", roll_cmd * 180/3.142, pitch_cmd * 180/3.142);
 }
 
 

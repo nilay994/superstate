@@ -1,0 +1,8 @@
+prefix=/home/mavlab/develop/superstate/mpcROS/devel
+
+Name: ransac
+Description: Description of ransac
+Version: 0.0.0
+Cflags: -I/home/mavlab/develop/superstate/mpcROS/src/ransac/include
+Libs: -L/home/mavlab/develop/superstate/mpcROS/devel/lib 
+Requires: roscpp std_msgs mav_msgs sensor_msgs geometry_msgs tf2 tf2_ros

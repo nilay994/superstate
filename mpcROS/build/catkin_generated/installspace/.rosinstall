@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/mavlab/develop/superstate/mpcROS/install/setup.sh
