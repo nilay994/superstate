@@ -7,7 +7,7 @@ close all;
 clear all;
 % what worked for drag est, fits well for thrust model, also mean of acceleration is good
 % filename = '../logs/2019-06-24_14_29_46.csv'; 
-filename = '/home/nilay/Downloads/2019-07-04_14_34_41.csv';
+filename = '../logs/2019-07-03_13_26_13.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);
 % M = M(1:4000, :);
@@ -257,7 +257,7 @@ for i = st-1:1:length(t)
 %     Vh(i,1), filt_a(i,3)] * x;
     % x(2) is already accounted for in a_body vector
     %newnewT(i,1) = [avgRpmSq(i), Vh(i,1), filt_a(i,3)] * [x(1)*1.05; x(3)/2; x(4)];
-    newnewT(i,1) = [avgRpmSq(i), Vh(i,1)] * [x(1); 0];
+    newnewT(i,1) = [avgRpmSq(i), Vh(i,1)] * [x(1); x(3)];
     % this signifies thrust increases while descending and decreases while
     % going forward? Which is untrue??
     % thr_axis = alpha * newnewT(i,1) + (1-alpha) * (-9.81/(cos(theta * 0.85) * cos(phi * 0.85))); 

@@ -218,7 +218,9 @@ void optimal_calc()
 }
 
 
-
+double roll_est = 0;
+double pitch_est = 0;
+double yaw_est = 0;
 
 void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg) 
 {
@@ -248,6 +250,16 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	x_est_old = x_est;
 	y_est_old = y_est;
 	z_est_old = z_est;
+
+
+	double qx = groundTruth_msg.transforms[0].transform.rotation.x;
+	double qy = groundTruth_msg.transforms[0].transform.rotation.y;
+	double qz = groundTruth_msg.transforms[0].transform.rotation.z;
+	double qw = groundTruth_msg.transforms[0].transform.rotation.w;
+
+	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
+	pitch_est = (asin(2*qw*qy - 2*qz*qx));
+	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
 }
 
 
@@ -302,11 +314,17 @@ int main(int argc, char** argv)
 
 	ros::Rate loop_rate(10);
 	int i = 0;
+	double newAng_theta = 0;
+	double newAng_phi = 0;
+	
 	while(ros::ok()) {
 		mav_msgs::RateThrust opt_cmd;
 		if(lock_optimal && i < N) {
-			opt_cmd.angular_rates.x = phi_cmd[i];
-			opt_cmd.angular_rates.y = theta_cmd[i];
+			newAng_theta = cos(yaw_est) * theta_cmd[i] - sin(yaw_est) * phi_cmd[i];
+			newAng_phi = sin(yaw_est) * theta_cmd[i] + cos(yaw_est) * phi_cmd[i];
+			
+			opt_cmd.angular_rates.x = newAng_phi;
+			opt_cmd.angular_rates.y = newAng_theta;
 			opt_cmd.angular_rates.z = 0;
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
