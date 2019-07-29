@@ -24,26 +24,27 @@
 clc; close all; clear all;
 
 % STEP0: setup for time optimal secant method
-tries = 5; 
+tries = 6; 
 
 banging_theta = zeros(tries,1);
 banging_phi   = zeros(tries,1);
+blah = 1;
+%for blah = 1:1:tries
+if ((banging_theta(blah)) < 80 && (banging_phi(blah) < 80))
+    pos0 = [0, 0];
+    posf = [0, 10];
 
-for blah = 1:1:tries
-
-    pos0 = [10, 0];
-    posf = [0, 0];
-
-    vel0 = [-5, 2];
-    velf = [5, 4];
+    vel0 = [0, 0];
+    velf = [10, 0];
 
     x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
     xd = [velf(1); posf(1); velf(2); posf(2)];
 
     h = 0.1;
-    TotalT = (sqrt((pos0(1) - posf(1))^2 + (pos0(2) - posf(2))^2)) / blah;
+    totalT = (sqrt((pos0(1) - posf(1))^2 + (pos0(2) - posf(2))^2)) * blah / ...
+             (sqrt((vel0(1) - velf(1))^2 + (vel0(2) - velf(2))^2));
     % N = 600;           % 2 seconds
-    N = round(TotalT/h);
+    N = round(totalT/h);
 
     % STEP1: Populate matrices
 
@@ -112,11 +113,11 @@ for blah = 1:1:tries
     end
 
     % PLOT THE % banged
-    % figure;
-    % plot(t, rad2deg(theta_arr)); hold on;
-    % plot(t, rad2deg(phi_arr)); grid on;
-    % hold off;
-    % legend('\theta', '\phi');
+%     figure;
+%     plot(t, rad2deg(theta_arr)); hold on;
+%     plot(t, rad2deg(phi_arr)); grid on;
+%     hold off;
+%     legend('\theta', '\phi');
     % xlabel('time'); ylabel('bank angles');
     banging_theta(blah) = sum(abs(theta_arr))/(N * maxbank) * 100;
     banging_phi(blah) = sum(abs(phi_arr))/(N * maxbank) * 100;
@@ -136,7 +137,7 @@ for blah = 1:1:tries
     pos(1,:) = pos0;
 
     dt = h;
-    psi = 10 * 3.142 / 180;
+    psi = 0; %10 * 3.142 / 180;
 
     flap = 0.8;
     % flap = 1;
@@ -165,13 +166,17 @@ for blah = 1:1:tries
     
     % round(fval)
     % figure;
-    plot(blah, fval, 'xr'); hold on;
+    plot(totalT, fval, 'xr'); hold on;
     %text(blah, fval, num2str(fval));
-    text(blah, cost,       "phi: "   + num2str(banging_phi(blah))+" %");
-    text(blah, cost + 100, "theta: " + num2str(banging_theta(blah))+" %");
-    plot(blah, cost, 'xb');
-    text(blah, cost + 200, "T: " + num2str(TotalT) + " sec");
+    text(totalT, cost,       "phi: "   + num2str(banging_phi(blah))+" %");
+    text(totalT, cost + 100, "theta: " + num2str(banging_theta(blah))+" %");
+    plot(totalT, cost, 'xb');
+    text(totalT, cost + 200, "T: " + num2str(totalT) + " sec");
+    plot(totalT, banging_phi(blah), 'xg');
+    plot(totalT, banging_theta(blah), 'xg');
     grid on;
+    
+    blah = blah + 1;
     %text(blah, cost, num2str(cost));
 end
 %% STEP4: plot the emulation

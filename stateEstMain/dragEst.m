@@ -32,24 +32,24 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
     
     %% linear drag model, simple
     figure; 
-    plot(bodyVel(:,1), bodyAcc(:,1), '.'); 
+    plot(bodyVel(:,1), bodyAcc(:,1), 'o', 'Color', [180/255, 180/255, 180/255]); 
     hold on; grid on;
     p_x = polyfit(bodyVel(:,1), bodyAcc(:,1), 1);
     yaxis = polyval(p_x, bodyVel(:,1));
-    plot(bodyVel(:,1), yaxis);
+    plot(bodyVel(:,1), yaxis, '-r', 'LineWidth', 2);
     xlabel('vel^B_x (m/s)'); ylabel('acc^B_x (m/s^2)');
-    title('OptiTrack vel vs acc in body frame');
+    title('OptiTrack vel_x vs acc in body frame');
 
     kdx1 = -p_x(1);
 
 
     % drag co-efficient in y direction
     figure;
-    plot(bodyVel(:,2), bodyAcc(:,2), '.'); 
+    plot(bodyVel(:,2), bodyAcc(:,2), 'o', 'Color', [180/255, 180/255, 180/255]); 
     hold on; grid on;
     p_y = polyfit( bodyVel(:,2), bodyAcc(:,2), 1);
     yaxis = polyval(p_y, bodyVel(:,2));
-    plot(bodyVel(:,2), yaxis);
+    plot(bodyVel(:,2), yaxis, '-r', 'LineWidth', 2);
     xlabel('vel^B_y (m/s)'); ylabel('acc^B_y (m/s^2)');
     title('OptiTrack vel_y vs acc in body frame');
 
