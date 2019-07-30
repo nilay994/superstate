@@ -32,7 +32,7 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
     
     %% linear drag model, simple
     figure; 
-    plot(bodyVel(:,1), bodyAcc(:,1), 'o', 'Color', [180/255, 180/255, 180/255]); 
+    plot(bodyVel(:,1), bodyAcc(:,1), '.', 'Color', [180/255, 180/255, 180/255]); 
     hold on; grid on;
     p_x = polyfit(bodyVel(:,1), bodyAcc(:,1), 1);
     yaxis = polyval(p_x, bodyVel(:,1));
@@ -45,7 +45,7 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
 
     % drag co-efficient in y direction
     figure;
-    plot(bodyVel(:,2), bodyAcc(:,2), 'o', 'Color', [180/255, 180/255, 180/255]); 
+    plot(bodyVel(:,2), bodyAcc(:,2), '.', 'Color', [180/255, 180/255, 180/255]); 
     hold on; grid on;
     p_y = polyfit( bodyVel(:,2), bodyAcc(:,2), 1);
     yaxis = polyval(p_y, bodyVel(:,2));
