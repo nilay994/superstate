@@ -58,6 +58,16 @@ float pathPredict(float x0[2], float v0[2],
                   float *xt, float *vt, float psi0);
 */
 
+// bound a value to a range [min,max]
+inline double bound_f(double val, double min, double max) {
+	if (val > max) {
+		val = max;
+	} else if (val < min) {
+		val = min;
+	}
+	return val;
+}
+
 class attitudeNode
 {
 public:

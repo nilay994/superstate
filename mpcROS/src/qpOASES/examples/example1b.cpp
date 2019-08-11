@@ -60,12 +60,25 @@ double z_est = 4;
 double xVel_est = 0;
 double yVel_est = 0;
 double zVel_est = 0;
-double timeStamp_old = 0;
-double x_est_old = 0;
-double y_est_old = 0;
-double z_est_old = 0;
+
 double dt_est = 0.001;
 bool firstMsg = 1;
+
+
+
+double pitch_cmd_pid = 0;
+double roll_cmd_pid  = 0;
+double vel_x_pid = 0;
+double vel_y_pid = 0;
+
+double pitch_cmd_opt = 0;
+double roll_cmd_opt  = 0;
+double vel_x_opt = 0;
+double vel_y_opt = 0;
+
+
+bool optimal_nilay = 0;
+
 
 
 
@@ -224,6 +237,10 @@ double yaw_est = 0;
 
 void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg) 
 {
+    static double timeStamp_old = 0;
+    static double x_est_old = 0;
+    static double y_est_old = 0;
+    static double z_est_old = 0;
 	x_est = groundTruth_msg.transforms[0].transform.translation.x;
 	y_est = groundTruth_msg.transforms[0].transform.translation.y;
 	z_est = groundTruth_msg.transforms[0].transform.translation.z;
@@ -260,6 +277,15 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
 	pitch_est = (asin(2*qw*qy - 2*qz*qx));
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
+
+	// fprintf(plot_f, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
+	// 				x_est, y_est, z_est,
+	// 				xVel_est, yVel_est, zVel_est,
+	// 				pitch_est, roll_est,
+	// 				vel_x_pid, vel_y_pid,
+	// 				pitch_cmd_pid, roll_cmd_pid,
+	// 				vel_x_opt, vel_y_opt,
+	// 				pitch_cmd_opt, roll_cmd_opt);
 }
 
 
@@ -280,7 +306,13 @@ void keyboard_cb(const mav_msgs::RateThrust &command)
 	if (command.angular_rates.y < 0) {
 		lock_optimal = 1;
 		printf("starting optimal control calc\n");
-		optimal_calc();
+		if (optimal_nilay == 1) {
+			optimal_calc();
+		}
+		else {
+
+		}
+		
 	}
 
 }

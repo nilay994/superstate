@@ -2,9 +2,6 @@
 #include "attitude_control.h"
 
 
-#define KDX 0.57 
-#define KDY 0.56
-
 // rate_hz
 double rate_hz = 960.0;
 
@@ -19,13 +16,11 @@ double roll_cmd = 0;
 double pitch_cmd = 0;
 double yawRate_cmd = 0;
 
-double vel_x_cmd = 0;
-double vel_y_cmd = 0;
+double vel_x_cmd_velframe = 0;
+double vel_y_cmd_velframe = 0;
+double xVel_est_velframe = 0;
+double yVel_est_velframe = 0;
 double vel_z_cmd = 0;
-
-double d_roll_cmd = 0;
-double d_pitch_cmd = 0;
-double d_yaw_cmd = 0;
 
 
 // for Vel control
@@ -43,14 +38,6 @@ double yVel_est = 0;
 double zVel_est = 0;
 
 
-// PID gains
-/*
-double kp_roll = 5.0;
-double kd_roll = 0.9;
-
-double kp_pitch = 6.5;
-double kd_pitch = 0.95;
-*/
 double kp_roll = 100.0;
 double kd_roll = 10;
 
@@ -63,53 +50,33 @@ double kd_yaw = 0.03;
 double kp_yawRate = 1.5;  
 double kp_hVel = 10.0;
 
-double kp_vel_x = 0.25;
-double kd_vel_x = 0.0;
+#define KP_POS_X 2
+#define KP_POS_Y 2
 
-double kp_vel_y = 0.15;
-double kd_vel_y = 0.0;
+#define KD_POS_X 0.02
+#define KD_POS_Y 0.02
 
-double kp_pos_x = 1.35;
-double kd_pos_x = 0.000075;
+#define KP_VEL_X 0.02
+#define KP_VEL_Y 0.02
+#define K_FF_THETA 0.04
+#define K_FF_PHI   0.04
+#define KD_VEL_X 0.6
+#define KD_VEL_Y 0.6
 
-double kp_pos_y = 1.35;
-double kd_pos_y = 0.000075;
+#define MAX_VEL_X 8
+#define MAX_VEL_Y 8
+#define MAX_BANK 0.8
 
-double kp_pos_z = 4.0;
-double kd_pos_z = 0.0;
-
-// estimated quaternion
-double qw = 1;
-double qx = 0;
-double qy = 0;
-double qz = 0;
-
-// for Vel control
-double dt_est = 0;
-
-double timeStamp_old = 0;
-double x_est_old = 0;
-double y_est_old = 0;
-double z_est_old = 0;
-
-double zVel_cmd = 0;
+double zVel_cmd = 9.81;
 
 
-double curr_error_roll = 0;
-double curr_error_pitch = 0;
 
-double diff_roll = 0;
-double old_error_roll = 0;
-double diff_pitch = 0;
-double old_error_pitch = 0;
 
-FILE *fg_log;
-FILE *imu_f;
+FILE *plot_f;
 
-// constructor initializes subscribers and publishers
+
 attitudeNode::attitudeNode(ros::NodeHandle nh)
 {
-  //rollPitchYawRateHeightRateCommand
   // keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, &attitudeNode::keyboard_cb, this);
   optimalcmd_sub = nh.subscribe("/optimalcmd", 1000, &attitudeNode::optimalcmd_cb, this);
   gt_sub = nh.subscribe("/tf", 1000, &attitudeNode::gtCallback, this);
@@ -119,101 +86,29 @@ attitudeNode::attitudeNode(ros::NodeHandle nh)
 
   // publish to drone dynamics 
   angular_rate_cmd_pub = nh.advertise<mav_msgs::RateThrust>("/uav/input/rateThrust", 1);
-  
-  // check pid values
-  if (!ros::param::get("~/kp_roll", kp_roll)) { 
-      std::cout << "kp_roll not found, defaulting to " << kp_roll << std::endl;
-  }
-  if (!ros::param::get("~/kd_roll", kd_roll)) { 
-      std::cout << "kd_roll not found, defaulting to " << kd_roll << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_pitch", kp_pitch)) { 
-      std::cout << "kp_pitch not found, defaulting to " << kp_pitch << std::endl;
-  }
-  if (!ros::param::get("~/kd_pitch", kd_pitch)) { 
-      std::cout << "kd_pitch not found, defaulting to " << kd_pitch << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_yaw", kp_yaw)) { 
-    std::cout << "kp_yaw not found, defaulting to " << kp_yaw << std::endl;
-  }
-  if (!ros::param::get("~/kd_yaw", kd_yaw)) { 
-    std::cout << "kd_yaw not found, defaulting to " << kd_yaw << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_yawRate", kp_yawRate)) { 
-      std::cout << "kp_yawRate not found, defaulting to " << kp_yawRate << std::endl;
-  }
-  if (!ros::param::get("~/kp_hVel", kp_hVel)) { 
-    std::cout << "kp_hVel not found, defaulting to " << kp_hVel << std::endl;
-  }
-  
-  if (!ros::param::get("~/kp_vel_x", kp_vel_x)) { 
-    std::cout << "kp_vel_x not found, defaulting to " << kp_vel_x << std::endl;
-  }
-  if (!ros::param::get("~/kd_vel_x", kd_vel_x)) { 
-    std::cout << "kd_vel_x not found, defaulting to " << kd_vel_x << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_vel_y", kp_vel_y)) { 
-    std::cout << "kp_vel_y not found, defaulting to " << kp_vel_y << std::endl;
-  }
-  if (!ros::param::get("~/kd_vel_y", kd_vel_y)) { 
-    std::cout << "kd_vel_y not found, defaulting to " << kd_vel_y << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_pos_x", kp_pos_x)) { 
-    std::cout << "kp_pos_x not found, defaulting to " << kp_pos_x << std::endl;
-  }
-  if (!ros::param::get("~/kd_pos_x", kd_pos_x)) { 
-    std::cout << "kd_pos_x not found, defaulting to " << kd_pos_x << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_pos_y", kp_pos_y)) { 
-    std::cout << "kp_pos_y not found, defaulting to " << kp_pos_y << std::endl;
-  }
-  if (!ros::param::get("~/kd_pos_y", kd_pos_y)) { 
-    std::cout << "kd_pos_y not found, defaulting to " << kd_pos_y << std::endl;
-  }
-
-  if (!ros::param::get("~/kp_pos_z", kp_pos_z)) { 
-    std::cout << "kp_pos_z not found, defaulting to " << kp_pos_z << std::endl;
-  }
-  if (!ros::param::get("~/kd_pos_z", kd_pos_z)) { 
-    std::cout << "kd_pos_z not found, defaulting to " << kd_pos_z << std::endl;
-  }
-
-  fg_log = fopen("tf.csv","w+");
-  imu_f = fopen("imu.csv","w+");
+  plot_f = fopen("plot.csv", "w+");
 
 }
 
 attitudeNode::~attitudeNode()
 {
   // cout << "Crashed at: " << clockTakeoff_msg.clock.toSec() 
-	fclose(fg_log);
-	fclose(imu_f);
+	fclose(plot_f);
 
 }
 
 
-float phi0 = 0;
-float phi1 = 0;
-float invert_time = 0;
-
-double acc_x = 0;
-double acc_y = 0;
-double acc_z = 0;
-
 double p = 0;
 double q = 0;
 double r = 0;
-
-
 /* imu callback for model prediction */
 void attitudeNode::imu_cb(const sensor_msgs::Imu &imuMsg)
 {
+
+  double acc_x = 0;
+  double acc_y = 0;
+  double acc_z = 0;
+
   // imu_time = imuMsg.header.stamp.toSec(); 
   p = imuMsg.angular_velocity.x;
   q = imuMsg.angular_velocity.y;
@@ -223,54 +118,6 @@ void attitudeNode::imu_cb(const sensor_msgs::Imu &imuMsg)
   acc_y = imuMsg.linear_acceleration.y;
   acc_z = imuMsg.linear_acceleration.z;
 }
-
-
-#if 0
-void attitudeNode::keyboard_cb(const mav_msgs::RateThrust &command)
-{
-	// vel_x_cmd   = command.angular_rates.y * 20;  
-	// vel_y_cmd   = - command.angular_rates.x * 20;  
-	/*position_x_cmd = command.angular_rates.y;
-	position_y_cmd = command.angular_rates.x;
-	yaw_cmd = command.angular_rates.z;  //   yawRate_cmd */
-
-  // roll_cmd    = command.angular_rates.x * 20 * 3.142 / 180;
-	// pitch_cmd   = command.angular_rates.y * 20 * 3.142 / 180;  
-	// yawRate_cmd = command.angular_rates.z;
-  printf("in keyboard_cb\n");
-	zVel_cmd    = command.thrust.z;
-
-  /*
-  if (command.angular_rates.y < 0) {
-    presstime =  command.header.stamp.toSec();
-    float x0[2]; // = {-24.0, -7.0}; //GPS_take;
-    float v0[2]; // = {5.0, 0.0}; // needs non zero initial velocity, not sure why
-
-    float xd[2] = {-0.37, -12.23};
-    
-
-    float xt[2];
-    float vt[2];
-
-    x0[0] = x_est;
-    x0[1] = y_est;
-
-    v0[0] = xVel_est;
-    v0[1] = yVel_est;
-    
-    // find_optimal(x0, v0, xd, vd, xt, vt, &phi0, &phi1, &invert_time, yaw_est);
-
-    printf("\n\nphi0: %f, phi1: %f, dt: %f\n", phi0, phi1, invert_time);
-    printf("reaching set: x: %f, y: %f, vx: %f, vy: %f\n", xt[0], xt[1], vt[0], vt[1]);
-
-
-    pressed = 1;
-    printf("maneuver activated\n");
-    sleep(0.3);
-  }
-  */
-}
-#endif
 
 void attitudeNode::optimalcmd_cb(const mav_msgs::RateThrust &cmd)
 {
@@ -283,20 +130,25 @@ void attitudeNode::optimalcmd_cb(const mav_msgs::RateThrust &cmd)
 }
 
 
-float K_ff_theta = 14.0/57 / 5;   // rad to fly at (e.g. 10 deg = 5 m/s)
-float K_p_theta = 6.0 / 57;       // m/s to radians
-bool first  = 1;
-bool second = 1;
-bool third  = 1;
 void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg) 
 {
+  static double curr_error_roll = 0;
+  static double curr_error_pitch = 0;
+  static double diff_roll = 0;
+  static double old_error_roll = 0;
+  static double diff_pitch = 0;
+  static double old_error_pitch = 0;
+
+  static double dt_est = 0;
+
+  static double timeStamp_old = 0;
+  static double x_est_old = 0;
+  static double y_est_old = 0;
+  static double z_est_old = 0;
+  
   x_est = groundTruth_msg.transforms[0].transform.translation.x;
   y_est = groundTruth_msg.transforms[0].transform.translation.y;
   z_est = groundTruth_msg.transforms[0].transform.translation.z;
-
-  // char act;
-  // cin >> act; act == 'g'
-
 
   if(firstMsg == 1) {
 
@@ -319,10 +171,10 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
     zVel_est = (z_est - z_est_old) / dt_est;
   }
   
-  qx = groundTruth_msg.transforms[0].transform.rotation.x;
-  qy = groundTruth_msg.transforms[0].transform.rotation.y;
-  qz = groundTruth_msg.transforms[0].transform.rotation.z;
-  qw = groundTruth_msg.transforms[0].transform.rotation.w;
+  double qx = groundTruth_msg.transforms[0].transform.rotation.x;
+  double qy = groundTruth_msg.transforms[0].transform.rotation.y;
+  double qz = groundTruth_msg.transforms[0].transform.rotation.z;
+  double qw = groundTruth_msg.transforms[0].transform.rotation.w;
   // tf::Quaternion q(groundTruth_msg.transform.rotation.x, groundTruth_msg.transform.rotation.y, groundTruth_msg.transform.rotation.z, groundTruth_msg.transform.rotation.w);
   // tf::Matrix3x3 R(q);
   // R.getEuler
@@ -331,11 +183,63 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
   pitch_est = (asin(2*qw*qy - 2*qz*qx));
   yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
 
-	d_roll_cmd  = kp_roll  * (roll_cmd - roll_est)   - kd_roll  * p; //PID_attitude_controller.roll_cmd * 0.3
-	d_pitch_cmd = kp_pitch * (pitch_cmd - pitch_est) - kd_pitch * q; //PID_attitude_controller.pitch_cmd * 0.3
-	d_yaw_cmd   = yawRate_cmd * kp_yawRate;
+  static double starttime = groundTruth_msg.transforms[0].header.stamp.toSec();
 
-	angular_rate_cmd.thrust.z = 9.81 / (cos(roll_est) * cos(pitch_est)) + (zVel_cmd - 9.81) + 0.8 * (4 - z_est); // Gate3 is at 4m
+  /** your faltu logic *************************/
+  if (groundTruth_msg.transforms[0].header.stamp.toSec() > starttime + 5) {
+    
+    static double old_error_pos_x_velFrame = 0;
+    static double old_error_pos_y_velFrame = 0;
+
+    double curr_error_pos_w_x = -0.37  - x_est;
+    double curr_error_pos_w_y = -12.23 - y_est;
+
+    double curr_error_pos_x_velframe =  cos(yaw_est)*curr_error_pos_w_x + sin(yaw_est)*curr_error_pos_w_y;
+    double curr_error_pos_y_velframe = -sin(yaw_est)*curr_error_pos_w_x + cos(yaw_est)*curr_error_pos_w_y;
+
+    double diff_pos_x_velframe = curr_error_pos_x_velframe - old_error_pos_x_velFrame;
+    double diff_pos_y_velframe = curr_error_pos_y_velframe - old_error_pos_y_velFrame;
+
+    vel_x_cmd_velframe = curr_error_pos_x_velframe * KP_POS_X - diff_pos_x_velframe * KD_POS_X;
+    vel_y_cmd_velframe = curr_error_pos_y_velframe * KP_POS_Y - diff_pos_y_velframe * KD_POS_Y;
+
+	  vel_x_cmd_velframe = bound_f(vel_x_cmd_velframe, -MAX_VEL_X, MAX_VEL_X);
+	  vel_y_cmd_velframe = bound_f(vel_y_cmd_velframe, -MAX_VEL_Y, MAX_VEL_Y);
+
+
+    // vel_x_cmd_velframe += 5; //pitch more for gate vel
+    
+    xVel_est_velframe =  cos(yaw_est) * xVel_est + sin(yaw_est) * yVel_est;
+    yVel_est_velframe = -sin(yaw_est) * xVel_est + cos(yaw_est) * yVel_est;
+
+    double curr_error_vel_x = (vel_x_cmd_velframe - xVel_est_velframe);
+    double curr_error_vel_y = (vel_y_cmd_velframe - yVel_est_velframe);
+
+    static double prev_error_vel_x = 0;
+    static double prev_error_vel_y = 0;
+
+    double diff_error_vel_x = curr_error_vel_x - prev_error_vel_x;
+    double diff_error_vel_y = curr_error_vel_y - prev_error_vel_y;
+
+    pitch_cmd =   curr_error_vel_x * KP_VEL_X - diff_error_vel_x * KD_VEL_X + K_FF_THETA * vel_x_cmd_velframe;
+    roll_cmd  = -(curr_error_vel_y * KP_VEL_Y - diff_error_vel_y * KD_VEL_Y + K_FF_PHI   * vel_y_cmd_velframe);
+
+    pitch_cmd = bound_f(pitch_cmd, -MAX_BANK, MAX_BANK);
+    roll_cmd  = bound_f(roll_cmd,  -MAX_BANK, MAX_BANK);
+
+    old_error_pos_x_velFrame = curr_error_pos_x_velframe;
+    old_error_pos_y_velFrame = curr_error_pos_y_velframe;
+
+    prev_error_vel_x = curr_error_vel_x;
+    prev_error_vel_y = curr_error_vel_y;
+  }
+  /**********************************************/
+  yawRate_cmd = 0 - yaw_est;
+	double d_roll_cmd  = kp_roll  * (roll_cmd - roll_est)   - kd_roll  * p; //PID_attitude_controller.roll_cmd * 0.3
+	double d_pitch_cmd = kp_pitch * (pitch_cmd - pitch_est) - kd_pitch * q; //PID_attitude_controller.pitch_cmd * 0.3
+	double d_yaw_cmd   = yawRate_cmd * kp_yawRate;
+
+	angular_rate_cmd.thrust.z = 9.81 / (cos(roll_est) * cos(pitch_est)) - 0.3 * zVel_est + 0.4 * (4 - z_est); // Gate3 is at 4m
 	// ROS_INFO_STREAM("thrust f " << angular_rate_cmd.thrust.z);
 	angular_rate_cmd.angular_rates.x = d_roll_cmd - sin(pitch_est) * d_yaw_cmd;
 	angular_rate_cmd.angular_rates.y = cos(roll_est) * d_pitch_cmd + cos(pitch_est) * sin(roll_est) * d_yaw_cmd;
@@ -346,14 +250,14 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 
 	angular_rate_cmd_pub.publish(angular_rate_cmd);
 
-	fprintf(fg_log, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n", 
-	  			groundTruth_msg.transforms[0].header.stamp.toSec(), 
-          x_est, y_est, z_est,
-          roll_est, pitch_est, yaw_est,
-          acc_x, acc_y, acc_z);
-
-	// fprintf(imu_f, "%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
-	//   			acc_x, acc_y, acc_z);
+  // if (dist_to_target < 0.1) {
+  fprintf(plot_f, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
+        x_est, y_est, z_est,
+        xVel_est_velframe, yVel_est_velframe, zVel_est,
+        pitch_est, roll_est,
+        vel_x_cmd_velframe, vel_y_cmd_velframe,
+        pitch_cmd, roll_cmd);
+  //}
   
 	timeStamp_old = groundTruth_msg.transforms[0].header.stamp.toSec();
 	x_est_old = x_est;
