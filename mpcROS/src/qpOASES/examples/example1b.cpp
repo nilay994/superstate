@@ -64,8 +64,6 @@ double zVel_est = 0;
 double dt_est = 0.001;
 bool firstMsg = 1;
 
-
-
 double pitch_cmd_pid = 0;
 double roll_cmd_pid  = 0;
 double vel_x_pid = 0;
@@ -76,11 +74,7 @@ double roll_cmd_opt  = 0;
 double vel_x_opt = 0;
 double vel_y_opt = 0;
 
-
-bool optimal_nilay = 0;
-
-
-
+bool optimal_nilay = 1;
 
 USING_NAMESPACE_QPOASES
 
@@ -97,9 +91,9 @@ void optimal_calc()
 	double posf[2] = {-0.37, -12.23};
 
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {6, 0};
+	double velf[2] = {5, 0};
 	float dt = 0.1;
-	float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / 4.0;
+	float T = 5.0; //sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / 4.0;
 	N = round(T/dt);
 	printf("Horizon: %d\n", N);  
 	
@@ -277,15 +271,6 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
 	pitch_est = (asin(2*qw*qy - 2*qz*qx));
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
-
-	// fprintf(plot_f, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
-	// 				x_est, y_est, z_est,
-	// 				xVel_est, yVel_est, zVel_est,
-	// 				pitch_est, roll_est,
-	// 				vel_x_pid, vel_y_pid,
-	// 				pitch_cmd_pid, roll_cmd_pid,
-	// 				vel_x_opt, vel_y_opt,
-	// 				pitch_cmd_opt, roll_cmd_opt);
 }
 
 

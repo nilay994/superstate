@@ -185,7 +185,7 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 
   static double starttime = groundTruth_msg.transforms[0].header.stamp.toSec();
 
-  /** your faltu logic *************************/
+  /** your faltu logic ************************
   if (groundTruth_msg.transforms[0].header.stamp.toSec() > starttime + 5) {
     
     static double old_error_pos_x_velFrame = 0;
@@ -233,8 +233,9 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
     prev_error_vel_x = curr_error_vel_x;
     prev_error_vel_y = curr_error_vel_y;
   }
-  /**********************************************/
+  
   yawRate_cmd = 0 - yaw_est;
+  *********************************************/
 	double d_roll_cmd  = kp_roll  * (roll_cmd - roll_est)   - kd_roll  * p; //PID_attitude_controller.roll_cmd * 0.3
 	double d_pitch_cmd = kp_pitch * (pitch_cmd - pitch_est) - kd_pitch * q; //PID_attitude_controller.pitch_cmd * 0.3
 	double d_yaw_cmd   = yawRate_cmd * kp_yawRate;

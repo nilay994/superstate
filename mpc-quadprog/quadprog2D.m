@@ -28,21 +28,21 @@ tries = 6;
 
 banging_theta = zeros(tries,1);
 banging_phi   = zeros(tries,1);
-blah = 1;
+blah = 2;
 %for blah = 1:1:tries
-if ((banging_theta(blah)) < 80 && (banging_phi(blah) < 80))
-    pos0 = [0, 0];
-    posf = [0, 10];
+while ((banging_theta(blah-1)) < 90 && (banging_phi(blah-1) < 90))
+    pos0 = [-10, 12];
+    posf = [-0.37, -12.23]; 
 
     vel0 = [0, 0];
-    velf = [10, 0];
+    velf = [5, 0];
 
     x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
     xd = [velf(1); posf(1); velf(2); posf(2)];
 
     h = 0.1;
-    totalT = (sqrt((pos0(1) - posf(1))^2 + (pos0(2) - posf(2))^2)) * blah / ...
-             (sqrt((vel0(1) - velf(1))^2 + (vel0(2) - velf(2))^2));
+    totalT = 10 * (sqrt((pos0(1) - posf(1))^2 + (pos0(2) - posf(2))^2)) / ...
+             ((sqrt((vel0(1) - velf(1))^2 + (vel0(2) - velf(2))^2)) * blah) ;
     % N = 600;           % 2 seconds
     N = round(totalT/h);
 
@@ -122,9 +122,6 @@ if ((banging_theta(blah)) < 80 && (banging_phi(blah) < 80))
     banging_theta(blah) = sum(abs(theta_arr))/(N * maxbank) * 100;
     banging_phi(blah) = sum(abs(phi_arr))/(N * maxbank) * 100;
     % NOTE: lambda already gives you a measure of how close you are to constraints
-    
-    
-    
     
     % STEP4: emulate the optimization on system model
     states = zeros(4, N);
