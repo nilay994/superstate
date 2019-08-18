@@ -42,9 +42,38 @@ st = 2;
 [filt_a, optiAcc, optiVel]= optiData(optiPos, accel, t, dt, 150, st);
 
 plotEverything(angBody, optiPos, optiVel, optiAcc, t);
+
 %% drag co-efficients estimation (only lateral x and y)
 
 rpmAvg = mean(rpm,2);
 % rpmAvg = ones(size(rpm));
 [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc, optiVel, rpmAvg, t);
  
+
+%% rnd loop - concludes that accelerometer's integrated velocity can't be used ever. 
+% It is biased wrt to gt (sometimes) and high variance,
+% if it was unbiased and low variance, it could still be used - since
+% integrator removes this. 
+r = zeros(length(t),3);
+vel_w = zeros(length(t),3);
+for i=2:1:length(t)
+    r(i,1) = r(i-1,1) + filt_a(i,1) * 0.002;
+    r(i,2) = r(i-1,2) + filt_a(i,2) * 0.002;
+    r(i,3) = r(i-1,3) + filt_a(i,3) * 0.002;
+end
+
+% estimate accelerations and velocity in body frame  
+for i = 2:1:length(t)
+    phi = angBody(i,1);
+    theta = angBody(i,2);
+    psi = angBody(i,3);
+
+    R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
+      sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi)...
+      sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi) sin(phi)*cos(theta);...
+      cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
+      cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
+    
+    vel_wt = R' * r(i,:)';
+    vel_w(i,:) = vel_wt';
+end

@@ -7,7 +7,11 @@ close all;
 clear all;
 
 filename = '../logs/2019-07-03_13_26_13.csv';
+% 2019-07-03_13_26_13.csv' original L shape
+% 2019-08-16_17_58_10.csv' fede coriolis flight, use twice the drag, was battery
+% low?
 M = csvread(filename, 1, 0);
+% M = M(1:2000, :);
 col = size(M,2);
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
@@ -29,11 +33,12 @@ t = t - t(1,1);
 dt = mean(gradient(t));
 g =  9.81;
 
-dr_state.x = M(:,25);
-dr_state.y = M(:,26);
 
-dr_cmd.roll  = M(:,27);
-dr_cmd.pitch = M(:,28);
+% dr_state.x = M(:,25);
+% dr_state.y = M(:,26);
+% 
+% dr_cmd.roll  = M(:,27);
+% dr_cmd.pitch = M(:,28);
 
 
 %% calc opti x, xd, xdd
@@ -64,7 +69,7 @@ end
 
 %% 
 
-st = 40;
+st = 50;
 acc_w = zeros(length(t), 3);
 vel_w = zeros(length(t), 3);
 pos_w = zeros(length(t), 3);
@@ -131,14 +136,14 @@ for i = st:1:length(t)
     az1 = -9.81/(cos(theta * 0.8) * cos(phi* 0.8)); 
     % thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
     % az1 = thrust(i,3);
-    acc_w(i,1) = (cos(phi) * cos(psi) * sin(theta) + sin(phi) * sin(psi))*az1 - kdx1 * vel_w(i-1,1);
-    acc_w(i,2) = (cos(phi) * sin(psi) * sin(theta) - cos(psi) * sin(phi))*az1 - kdy1 * vel_w(i-1,2);
+    acc_w(i,1) = (cos(phi) * cos(psi) * sin(theta) + sin(phi) * sin(psi))*az1 -kdx1 * vel_w(i-1,1);
+    acc_w(i,2) = (cos(phi) * sin(psi) * sin(theta) - cos(psi) * sin(phi))*az1 -kdy1 * vel_w(i-1,2);
     acc_w(i,3) =  cos(theta) * cos(phi) * az1 + 9.81;
     vel_w(i,1:3) = vel_w(i-1,1:3) + acc_w(i,1:3) .* dt;
     pos_w(i,1:3) = pos_w(i-1,1:3) + vel_w(i,1:3) .* dt; 
     
     % METHOD2: Kumar
-    bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
+    % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
     kd = rpmAvg(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 0]; % depends on x??!
     a_body = (kd * R * vel_w2(i-1, 1:3)')';    
     thr_axis = (-9.81/(cos(theta * 0.8) * cos(phi * 0.8))); 
@@ -149,10 +154,16 @@ for i = st:1:length(t)
     vel_w2(i,1:3) = vel_w2(i-1,1:3) + (acc_w2(i,1:3) .* dt);
     pos_w2(i,1:3) = pos_w2(i-1,1:3) + (vel_w2(i,1:3) .* dt);
     
+    
     % METHOD3: Tarek's method
+    bodyVel = (R * vel_w3(i-1,1:3)');
+    % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
     thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
     kd = thrust(i,3) * [-kdx3 0 0; 0 -kdy3 0; 0 0 0];
-    a_body = (kd * R * vel_w3(i-1, 1:3)')'; % plus some bias. 
+    a_body = (kd * R * vel_w3(i-1, 1:3)')' + cross(gyro(i,:), bodyVel);
+    alpha = 0.7;
+    a_body(1) = alpha * accel(i,1) + (1-alpha) * a_body(1); 
+    a_body(2) = alpha * accel(i,2) + (1-alpha) * a_body(2); 
     a_body(3) = 0;
     acc_t = ([0;0;9.81] + R'* [0;0;thrust(i,3)] + R' * [a_body(1); a_body(2); a_body(3)])';
     acc_w3(i,1) = acc_t(1);
@@ -161,9 +172,6 @@ for i = st:1:length(t)
     
     vel_w3(i,1:3) = vel_w3(i-1,1:3) + (acc_w3(i,1:3) .* dt);
     pos_w3(i,1:3) = pos_w3(i-1,1:3) + (vel_w3(i,1:3) .* dt);
-    
-    bodyVel(i,1:3) = (R * optiVel(i,:)')';
-
 end
 
  %% verify filters
