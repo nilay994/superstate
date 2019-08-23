@@ -74,7 +74,6 @@ double roll_cmd_opt  = 0;
 double vel_x_opt = 0;
 double vel_y_opt = 0;
 
-bool optimal_nilay = 1;
 
 USING_NAMESPACE_QPOASES
 
@@ -91,7 +90,7 @@ void optimal_calc()
 	double posf[2] = {-0.37, -12.23};
 
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {5, 0};
+	double velf[2] = {8, 0};
 	float dt = 0.1;
 	float T = 5.0; //sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / 4.0;
 	N = round(T/dt);
@@ -212,7 +211,7 @@ void optimal_calc()
 			for (int i=0; i<N; i++) {
 				cout << xOpt[i] << ",";
 				theta_cmd[i] = (float) xOpt[2*i];
-				phi_cmd[i] = (float) -1 * xOpt[2*i + 1];
+				phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
 				for (; j<last_idx + 100; j++) {					
 					theta_cmd_long[j] = theta_cmd[i];
 					phi_cmd_long[j]   = phi_cmd[i];
@@ -273,35 +272,43 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
 }
 
+bool lock_optimal = 0;
+void optimalJoystick_cb(std_msgs::Empty::Ptr msg) {
+   	lock_optimal = 1;
+	printf("starting optimal control calc\n");
+	optimal_calc();
+}
 
 ros::Publisher optimalcmd_pub;
-bool lock_optimal = 0;
-void keyboard_cb(const mav_msgs::RateThrust &command)
+ros::Publisher pub_resetdrone;
+void ratethrust_cb(const mav_msgs::RateThrust &command)
 {
-	mav_msgs::RateThrust opt_cmd;
-	if (command.angular_rates.y >= 0 && !lock_optimal) {
-		opt_cmd.angular_rates.x = command.angular_rates.x * 20 * 3.142/180;
-		opt_cmd.angular_rates.y = command.angular_rates.y * 20 * 3.142/180;
+	if (!lock_optimal) {
+		mav_msgs::RateThrust opt_cmd;
+		opt_cmd.angular_rates.x = command.angular_rates.x * 35 * 3.142/180;
+		opt_cmd.angular_rates.y = command.angular_rates.y * 35 * 3.142/180;
 		opt_cmd.angular_rates.z = command.angular_rates.z;
 		opt_cmd.thrust.z = command.thrust.z;
 		optimalcmd_pub.publish(opt_cmd);
-		printf("manual mode \n");
 	}
-
-	if (command.angular_rates.y < 0) {
+		// printf("manual mode \n");
+	// }
+	/*
+	if (command.angular_rates.y == (-1) || joystickoptimal) {
 		lock_optimal = 1;
 		printf("starting optimal control calc\n");
 		if (optimal_nilay == 1) {
 			optimal_calc();
 		}
 		else {
-
 		}
-		
-	}
-
+	}*/
 }
 
+void resetdrone_cb(std_msgs::Empty::Ptr msg) {
+
+	pub_resetdrone.publish(std_msgs::Empty());
+}
 
 /** Example for qpOASES main function using the QProblemB class. */
 int main(int argc, char** argv)
@@ -312,12 +319,18 @@ int main(int argc, char** argv)
 
 	// publish to control loop commands in controllermavlab
   	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 100);
+	pub_resetdrone = nh.advertise<std_msgs::Empty>("/uav/collision", 1);
 
-	ros::Subscriber keyboard_sub;
+	ros::Subscriber ratethrust_sub;
 	ros::Subscriber gt_sub;
+	ros::Subscriber joystick_sub;
+	ros::Subscriber resetdrone_sub;
 
 	gt_sub = nh.subscribe("/tf", 1000, gtCallback); 
-  	keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, keyboard_cb);
+  	ratethrust_sub = nh.subscribe("/controller/input/keyboard", 1000, ratethrust_cb);
+	joystick_sub   = nh.subscribe("/control_nodes/triggeroptimal", 1, optimalJoystick_cb);
+	resetdrone_sub = nh.subscribe("/control_nodes/resetdrone", 1, resetdrone_cb);
+
 	optimal_calc();
 	/*
 	This function returns one of the following values:

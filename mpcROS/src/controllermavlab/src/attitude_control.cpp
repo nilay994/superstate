@@ -69,9 +69,6 @@ double kp_hVel = 10.0;
 
 double zVel_cmd = 9.81;
 
-
-
-
 FILE *plot_f;
 
 
@@ -80,9 +77,7 @@ attitudeNode::attitudeNode(ros::NodeHandle nh)
   // keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, &attitudeNode::keyboard_cb, this);
   optimalcmd_sub = nh.subscribe("/optimalcmd", 1000, &attitudeNode::optimalcmd_cb, this);
   gt_sub = nh.subscribe("/tf", 1000, &attitudeNode::gtCallback, this);
-
   imu_sub = nh.subscribe("/uav/sensors/imu", 1000, &attitudeNode::imu_cb, this);
-
 
   // publish to drone dynamics 
   angular_rate_cmd_pub = nh.advertise<mav_msgs::RateThrust>("/uav/input/rateThrust", 1);
@@ -104,7 +99,6 @@ double r = 0;
 /* imu callback for model prediction */
 void attitudeNode::imu_cb(const sensor_msgs::Imu &imuMsg)
 {
-
   double acc_x = 0;
   double acc_y = 0;
   double acc_z = 0;
@@ -121,12 +115,11 @@ void attitudeNode::imu_cb(const sensor_msgs::Imu &imuMsg)
 
 void attitudeNode::optimalcmd_cb(const mav_msgs::RateThrust &cmd)
 {
-  
   roll_cmd    = cmd.angular_rates.x;
 	pitch_cmd   = cmd.angular_rates.y;  
 	yawRate_cmd = cmd.angular_rates.z;
 	zVel_cmd    = cmd.thrust.z;
-  printf("in optimal_cb, roll_cmd: %f\n", roll_cmd * 180/3.142);
+  // printf("in optimal_cb, roll_cmd: %f\n", roll_cmd * 180/3.142);
 }
 
 

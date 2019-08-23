@@ -1,5 +1,5 @@
 - ACADO is the best thing - however not when codegening for my case
-- Mayer terms are not the standard least squares optimization in blackbox codegen that seems to be supported. 
+- Mayer terms are not the standard least squares optimization in blackbox codegen that seems to be supported. `[ACADO] Error: Only standard LSQ objective supported for code generation`
 - Infact, not even the horizon thing is a problem. Lets say I fixed a constant horizon, I still can't optimize for saturated control inputs by adding maximizeMayerterm. 
 - No examples in codegen use mayer terms.
 - profiling the code on Bebop yeilds 2ms using my dynamic equations, 8ms using theirs. 

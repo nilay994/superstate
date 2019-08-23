@@ -99,9 +99,6 @@ public:
   void tofCallback(const sensor_msgs::Range &currentTof);
   */
 
-
-
-
 };
 
 
