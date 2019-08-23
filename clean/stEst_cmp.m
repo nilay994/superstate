@@ -11,7 +11,7 @@ filename = '../logs/2019-07-03_13_26_13.csv';
 % 2019-08-16_17_58_10.csv' fede coriolis flight, use twice the drag, was battery
 % low?
 M = csvread(filename, 1, 0);
-% M = M(1:2000, :);
+% M = M(1:3000, :);
 col = size(M,2);
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
@@ -51,25 +51,25 @@ rpmAvg = mean(rpm,2);
 
 %% compensate before yawing
 
-grndtruth = zeros(length(t), 3);
-for i = 1:1:length(t)
-    phi   = angBody(i,1);
-    theta = angBody(i,2);
-    psi   = angBody(i,3);
-    
-    R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
-      sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi)...
-      sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi) sin(phi)*cos(theta);...
-      cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
-      cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
-    grndtruth(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
-end
-
-[comp_acc, parx, pary, parz] = compensator(grndtruth, accel, t);
+% grndtruth = zeros(length(t), 3);
+% for i = 1:1:length(t)
+%     phi   = angBody(i,1);
+%     theta = angBody(i,2);
+%     psi   = angBody(i,3);
+%     
+%     R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
+%       sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi)...
+%       sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi) sin(phi)*cos(theta);...
+%       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
+%       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
+%     grndtruth(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
+% end
+% 
+% [comp_acc, parx, pary, parz] = compensator(grndtruth, accel, t);
 
 %% 
 
-st = 50;
+st = 60;
 acc_w = zeros(length(t), 3);
 vel_w = zeros(length(t), 3);
 pos_w = zeros(length(t), 3);
@@ -93,19 +93,11 @@ vel_w3(1:st,:) = optiVel(1:st,:);
 
 thrust = zeros(length(t), 3);
 
-Vb = zeros(length(t), 3);
-Vbz = zeros(length(t), 1);
-Vh = zeros(length(t), 1);
-newT = zeros(length(t), 1);
-
-bodyVel = zeros(length(t), 3);
-avgRpm = zeros(length(t), 1);
-
 for i = st:1:length(t)
     
     phi   = angBody(i,1);
     theta = angBody(i,2);
-    psi   = angBody(i,3) - 0.5/2.5;
+    psi   = angBody(i,3) - 0.5/2.5;% -1;
     
     % this is world to body
     R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
@@ -114,7 +106,7 @@ for i = st:1:length(t)
       cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi)...
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
   
-      % emulated PnP
+    % emulated PnP
     % update the positions and velocities atleast 20 times
     if rem(i,round(length(t)/20)) == 0 
 %         pos_w(i:i-1,:)  = optiPos(i:i-1,:);
@@ -124,15 +116,9 @@ for i = st:1:length(t)
 %         vel_w(i:i-1,:)  = optiVel(i:i-1,:);
 %         vel_w2(i:i-1,:) = optiVel(i:i-1,:);
 %         vel_w3(i:i-1,:) = optiVel(i:i-1,:);
-        
     end
   
-    
-    % METHOD new: Coriolis time
-    % someran = cross(rateBody(i,1:3)' , (R * optiVel(i, 1:3)'));
-    % - 0.5 * rssq(R * [optiVel(i-1,1); optiVel(i-1,2); 0]); % + someran(3); %
-    
-    % METHOD1: Delftse
+    % METHOD1: UZH and Delft
     az1 = -9.81/(cos(theta * 0.8) * cos(phi* 0.8)); 
     % thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
     % az1 = thrust(i,3);
@@ -142,12 +128,19 @@ for i = st:1:length(t)
     vel_w(i,1:3) = vel_w(i-1,1:3) + acc_w(i,1:3) .* dt;
     pos_w(i,1:3) = pos_w(i-1,1:3) + vel_w(i,1:3) .* dt; 
     
-    % METHOD2: Kumar
+    % METHOD2: Mahony and Kumar + coriolis + altitude
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
-    kd = rpmAvg(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 0]; % depends on x??!
-    a_body = (kd * R * vel_w2(i-1, 1:3)')';    
-    thr_axis = (-9.81/(cos(theta * 0.8) * cos(phi * 0.8))); 
-    acc_t = ([0;0;9.81] + R'* ([0;0; thr_axis] + [a_body(1); a_body(2); a_body(3)]))';
+    kd = rpmAvg(i,1) * [-kdx2 0 0; 0 -kdy2 0; 0 0 -x(2)]; % depends on x??!
+      
+    % get thrust altitude ready
+    avgRpmSq = (sum(rpm(i,:))/4)^2;
+    avgRpmMean = sum(rpm(i,:)/4);
+    bodyVel = (R * vel_w3(i-1,1:3)');
+    Vh = (bodyVel(1)^2 + bodyVel(2)^2);   
+    thrustt = [avgRpmSq, Vh] * [1.1 * x(1); x(3)];
+    a_body = (kd * R * vel_w2(i-1, 1:3)')';
+    a_body(3) = 0;
+    acc_t = ([0;0;9.81] + R'* ([0;0; thrustt] + [a_body(1); a_body(2); a_body(3)]))';
     acc_w2(i,1) = acc_t(1);
     acc_w2(i,2) = acc_t(2);
     acc_w2(i,3) = acc_t(3);
@@ -155,128 +148,155 @@ for i = st:1:length(t)
     pos_w2(i,1:3) = pos_w2(i-1,1:3) + (vel_w2(i,1:3) .* dt);
     
     
-    % METHOD3: Tarek's method
-    bodyVel = (R * vel_w3(i-1,1:3)');
+    % METHOD3: (Tarek Hamel + coriolis + altitude)
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
-    thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
-    kd = thrust(i,3) * [-kdx3 0 0; 0 -kdy3 0; 0 0 0];
-    a_body = (kd * R * vel_w3(i-1, 1:3)')' + cross(gyro(i,:), bodyVel);
-    alpha = 0.7;
-    a_body(1) = alpha * accel(i,1) + (1-alpha) * a_body(1); 
-    a_body(2) = alpha * accel(i,2) + (1-alpha) * a_body(2); 
-    a_body(3) = 0;
-    acc_t = ([0;0;9.81] + R'* [0;0;thrust(i,3)] + R' * [a_body(1); a_body(2); a_body(3)])';
+    % thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
+    kd = thrustt * [-kdx3 0 0; 0 -kdy3 0; 0 0 -kdy3];
+    a_body = (kd * R * vel_w3(i-1, 1:3)')';% + cross(gyro(i,:), bodyVel); 
+%     a_body(1) = alpha * accel(i,1) + (1-alpha) * a_body(1); 
+%     a_body(2) = alpha * accel(i,2) + (1-alpha) * a_body(2); 
+    acc_t = ([0;0;9.81] + R'* ([0;0; 0.96*thrustt] + [a_body(1); a_body(2); a_body(3)]))';
     acc_w3(i,1) = acc_t(1);
     acc_w3(i,2) = acc_t(2);
     acc_w3(i,3) = acc_t(3);
-    
     vel_w3(i,1:3) = vel_w3(i-1,1:3) + (acc_w3(i,1:3) .* dt);
     pos_w3(i,1:3) = pos_w3(i-1,1:3) + (vel_w3(i,1:3) .* dt);
+    
+
 end
 
  %% verify filters
+% root-mean-square error (RMSE)
+emat = zeros(3,3);
+emat(1,1) = rms(pos_w(:,1) - optiPos(:,1));
+emat(2,1) = rms(pos_w(:,2) - optiPos(:,2));
+emat(3,1) = rms(pos_w(:,3) - optiPos(:,3));
 
+emat(1,2) = rms(pos_w2(:,1) - optiPos(:,1));
+emat(2,2) = rms(pos_w2(:,2) - optiPos(:,2));
+emat(3,2) = rms(pos_w2(:,3) - optiPos(:,3));
+
+emat(1,3) = rms(pos_w3(:,1) - optiPos(:,1));
+emat(2,3) = rms(pos_w3(:,2) - optiPos(:,2));
+emat(3,3) = rms(pos_w3(:,3) - optiPos(:,3));
+
+
+evmat = zeros(3,3);
+evmat(1,1) = rms(vel_w(:,1) - optiVel(:,1));
+evmat(2,1) = rms(vel_w(:,2) - optiVel(:,2));
+evmat(3,1) = rms(vel_w(:,3) - optiVel(:,3));
+
+evmat(1,2) = rms(vel_w2(:,1) - optiVel(:,1));
+evmat(2,2) = rms(vel_w2(:,2) - optiVel(:,2));
+evmat(3,2) = rms(vel_w2(:,3) - optiVel(:,3));
+
+evmat(1,3) = rms(vel_w3(:,1) - optiVel(:,1));
+evmat(2,3) = rms(vel_w3(:,2) - optiVel(:,2));
+evmat(3,3) = rms(vel_w3(:,3) - optiVel(:,3));
+ 
+ %% plot
 
 % plot the dead reckoning by two methods 
+set(0, 'DefaultLineLineWidth', 2);
 threed = figure; 
-set(threed,'DefaultLineLineWidth',2)
+%set(threed,'DefaultLineLineWidth',2)
 
-plot3(pos_w(:,1), pos_w(:,2), pos_w(:,3)); 
+plot3(pos_w(st:end,1), pos_w(st:end,2), pos_w(st:end,3)); 
 axis equal; hold on; grid on;
-plot3(pos_w2(:,1), pos_w2(:,2), pos_w2(:,3));
-plot3(pos_w3(:,1), pos_w3(:,2), pos_w3(:,3));
-plot3(optiPos(:,1), optiPos(:,2), optiPos(:,3));
-legend('Delft', 'Kumar', 'Tarek', 'gt'); 
+plot3(pos_w2(st:end,1), pos_w2(st:end,2), pos_w2(st:end,3));
+plot3(pos_w3(st:end,1), pos_w3(st:end,2), pos_w3(st:end,3));
+plot3(optiPos(st:end,1), optiPos(st:end,2), optiPos(st:end,3));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt'); 
 xlabel('x (m)'); ylabel('y (m)'); zlabel('z (m)');
 
 top = figure; 
-plot(pos_w(:,1), pos_w(:,2)); 
+plot(pos_w(st:end,1), pos_w(st:end,2)); 
 axis equal; hold on; grid on;
-plot(pos_w2(:,1), pos_w2(:,2));
-plot(pos_w3(:,1), pos_w3(:,2));
-plot(optiPos(:,1), optiPos(:,2));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  
+plot(pos_w2(st:end,1), pos_w2(st:end,2));
+plot(pos_w3(st:end,1), pos_w3(st:end,2));
+plot(optiPos(st:end,1), optiPos(st:end,2));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  
 xlabel('x (m)'); ylabel('y (m)')
-text(optiPos(1,1), optiPos(1,2), 'start');
+text(optiPos(st,1), optiPos(st,2), 'start');
 text(optiPos(end,1), optiPos(end,2), 'end');
 
 posPlot = figure;
 sgtitle('position');
 subplot(3,1,1);
-plot(t, pos_w(:,1)); 
+plot(t(st:end), pos_w(st:end,1)); 
 hold on; grid on; 
-plot(t, pos_w2(:,1));
-plot(t, pos_w3(:,1));
-plot(t, optiPos(:,1));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('x (m)');
+plot(t(st:end), pos_w2(st:end,1));
+plot(t(st:end), pos_w3(st:end,1));
+plot(t(st:end), optiPos(st:end,1));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('x (m)');
 
 subplot(3,1,2);
-plot(t, pos_w(:,2)); 
+plot(t(st:end), pos_w(st:end,2)); 
 hold on; grid on; 
-plot(t, pos_w2(:,2));
-plot(t, pos_w3(:,2));
-plot(t, optiPos(:,2));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('y (m)');
+plot(t(st:end), pos_w2(st:end,2));
+plot(t(st:end), pos_w3(st:end,2));
+plot(t(st:end), optiPos(st:end,2));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('y (m)');
 
 subplot(3,1,3);
-plot(t, pos_w(:,3)); 
+plot(t(st:end), pos_w(st:end,3)); 
 hold on; grid on; 
-plot(t, pos_w2(:,3));
-plot(t, pos_w3(:,3));
-plot(t, optiPos(:,3));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('z (m)');
+plot(t(st:end), pos_w2(st:end,3));
+plot(t(st:end), pos_w3(st:end,3));
+plot(t(st:end), optiPos(st:end,3));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('z (m)');
 
 velPlot = figure;
 sgtitle('lateral velocity');
 subplot(3,1,1);
-plot(t, vel_w(:,1)); 
+plot(t(st:end), vel_w(st:end,1)); 
 hold on; grid on; 
-plot(t, vel_w2(:,1));
-plot(t, vel_w3(:,1));
-plot(t, optiVel(:,1));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('v_x (m/s)');
+plot(t(st:end), vel_w2(st:end,1));
+plot(t(st:end), vel_w3(st:end,1));
+plot(t(st:end), optiVel(st:end,1));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('v_x (m/s)');
 
 subplot(3,1,2);
-plot(t, vel_w(:,2)); 
+plot(t(st:end), vel_w(st:end,2)); 
 hold on; grid on; 
-plot(t, vel_w2(:,2));
-plot(t, vel_w3(:,2));
-plot(t, optiVel(:,2));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('v_y (m/s)');
+plot(t(st:end), vel_w2(st:end,2));
+plot(t(st:end), vel_w3(st:end,2));
+plot(t(st:end), optiVel(st:end,2));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('v_y (m/s)');
 
 subplot(3,1,3);
-plot(t, vel_w(:,3)); 
+plot(t(st:end), vel_w(st:end,3)); 
 hold on; grid on; 
-plot(t, vel_w2(:,3));
-plot(t, vel_w3(:,3));
-plot(t, optiVel(:,3));
-legend('Delft', 'Kumar', 'Tarek', 'gt');  xlabel('time (s)'); ylabel('v_z (m/s)');
+plot(t(st:end), vel_w2(st:end,3));
+plot(t(st:end), vel_w3(st:end,3));
+plot(t(st:end), optiVel(st:end,3));
+legend('UZH', 'Mahony-Kumar', 'proposed', 'gt');  xlabel('time (s)'); ylabel('v_z (m/s)');
 
 accPlot = figure;
 sgtitle('acceleration');
 subplot(3,1,1);
-plot(t, optiAcc(:,1));
+plot(t(st:end), optiAcc(st:end,1));
 hold on; grid on;
-plot(t, acc_w(:,1)); 
-plot(t, acc_w2(:,1));
-plot(t, acc_w3(:,1));
-legend('gt', 'Delft', 'Kumar', 'Tarek'); xlabel('time (s)'); ylabel('a_x (m/s^2)');
+plot(t(st:end), acc_w(st:end,1)); 
+plot(t(st:end), acc_w2(st:end,1));
+plot(t(st:end), acc_w3(st:end,1));
+legend('gt', 'UZH', 'Mahony-Kumar', 'proposed'); xlabel('time (s)'); ylabel('a_x (m/s^2)');
 
 subplot(3,1,2);
-plot(t, optiAcc(:,2));
+plot(t(st:end), optiAcc(st:end,2));
 hold on; grid on;
-plot(t, acc_w(:,2));
-plot(t, acc_w2(:,2));
-plot(t, acc_w3(:,2));
-legend('gt','Delft', 'Kumar', 'Tarek'); xlabel('time (s)'); ylabel('a_y (m/s^2)');
+plot(t(st:end), acc_w(st:end,2));
+plot(t(st:end), acc_w2(st:end,2));
+plot(t(st:end), acc_w3(st:end,2));
+legend('gt','UZH', 'Mahony-Kumar', 'proposed'); xlabel('time (s)'); ylabel('a_y (m/s^2)');
 
 subplot(3,1,3);
-plot(t, optiAcc(:,3));
+plot(t(st:end), optiAcc(st:end,3));
 hold on; grid on;
-plot(t, acc_w(:,3)); 
-plot(t, acc_w2(:,3));
-plot(t, acc_w3(:,3));
-legend('gt','Delft', 'Kumar', 'Tarek'); xlabel('time (s)'); ylabel('a_z (m/s^2)');
+plot(t(st:end), acc_w(st:end,3)); 
+plot(t(st:end), acc_w2(st:end,3));
+plot(t(st:end), acc_w3(st:end,3));
+legend('gt','UZH', 'Mahony-Kumar', 'proposed'); xlabel('time (s)'); ylabel('a_z (m/s^2)');
 
 %%
 saveas(top, 'top', 'epsc');
