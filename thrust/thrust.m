@@ -6,8 +6,8 @@ clc;
 close all;
 clear all;
 % what worked for drag est, fits well for thrust model, also mean of acceleration is good
-%filename = '../logs/2019-06-24_14_29_46.csv'; 
-filename = '../logs/2019-07-03_13_26_13.csv';
+filename = '../logs/2019-09-02_13_12_24.csv'; 
+% filename = '../logs/2019-07-03_13_26_13.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);
 % M = M(1:4000, :);
@@ -44,7 +44,7 @@ dr_cmd.pitch = M(:,28);
 % if a cropped flight data is used. 
 % (cropped flight data is essential for thrust modelling, no one is starting and stopping logs for me in hover position)
 % delay is less if window size is less
-windowSize = 40; 
+windowSize = 100; 
 b = (1/windowSize)*ones(1,windowSize);
 a = 1;
 
@@ -59,7 +59,7 @@ optiAcc(:,3) = filter(b,a, gradient(optiVel(:,3))/dt);
 
 % filter the body accelerations  
 % 2Hz cutoff, 5th order bessel filter
-filter_acc = mkfilter(2, 5, 'bessel');
+filter_acc = mkfilter(10, 5, 'bessel');
 filt_a(:,1) = lsim(filter_acc, accel(:,1), t);
 filt_a(:,2) = lsim(filter_acc, accel(:,2), t);
 filt_a(:,3) = lsim(filter_acc, accel(:,3), t);
@@ -104,7 +104,6 @@ A = zeros(length(t), 3);
 Vb  = zeros(length(t), 3);
 Vbz = zeros(length(t), 1);
 Vh  = zeros(length(t), 1);
-
 
 avgRpmSq   = zeros(length(t), 1);
 avgRpmMean = zeros(length(t), 1);
@@ -154,7 +153,7 @@ for i=idx
       cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*cos(theta)];
     
     newT(i,1) = [avgRpmSq(i), ...
-            -avgRpmMean(i) * Vbz(i), ...
+            avgRpmMean(i) * Vbz(i), ...
             Vh(i,1)] * x;  % , filt_a(i,3)
 
 % doesn't work yet, bias should have less weight in the fit?
@@ -174,7 +173,7 @@ sprintf("rms of fit, less is good: %f", rms(eps))
 % gaussian fits only in case of cropped flight data using filter and not
 % smooth while deriving optiTrack accelerations
 figure;  
-histogram(eps, 'Normalization', 'pdf'); 
+histogram(eps, 'Normalization', 'pdf'); grid on;
 title("rms of thrust model fit without accmeter (causal) is: " + num2str(rms(eps)));
 %% 
 figure;

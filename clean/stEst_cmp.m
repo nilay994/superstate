@@ -6,12 +6,13 @@ clc;
 close all;
 clear all;
 
-filename = '../logs/2019-07-03_13_26_13.csv';
+filename = '../logs/2019-09-02_16_01_26.csv';
 % 2019-07-03_13_26_13.csv' original L shape
 % 2019-08-16_17_58_10.csv' fede coriolis flight, use twice the drag, was battery
 % low?
 M = csvread(filename, 1, 0);
-% M = M(1:3000, :);
+
+M = M(1:5000, :);
 col = size(M,2);
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
@@ -42,7 +43,7 @@ g =  9.81;
 
 
 %% calc opti x, xd, xdd
-st = 40;
+st = 400;
 [filt_a, optiAcc, optiVel]= optiData(optiPos, accel, t, dt, 150, st);
 
 % or read from old dataset to prevent overfitting
@@ -69,7 +70,7 @@ rpmAvg = mean(rpm,2);
 
 %% 
 
-st = 60;
+st = 600;
 acc_w = zeros(length(t), 3);
 vel_w = zeros(length(t), 3);
 pos_w = zeros(length(t), 3);
@@ -97,7 +98,7 @@ for i = st:1:length(t)
     
     phi   = angBody(i,1);
     theta = angBody(i,2);
-    psi   = angBody(i,3) - 0.5/2.5;% -1;
+    psi   = angBody(i,3)-  0.7/2.5; % -1
     
     % this is world to body
     R = [cos(theta)*cos(psi) cos(theta)*sin(psi) -sin(theta);...
@@ -137,9 +138,10 @@ for i = st:1:length(t)
     avgRpmMean = sum(rpm(i,:)/4);
     bodyVel = (R * vel_w3(i-1,1:3)');
     Vh = (bodyVel(1)^2 + bodyVel(2)^2);   
-    thrustt = [avgRpmSq, Vh] * [1.1 * x(1); x(3)];
+    thrustt = [avgRpmSq, Vh] * [x(1); x(3)];
+    % thrustt = [0 0 1] * (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)]);
     a_body = (kd * R * vel_w2(i-1, 1:3)')';
-    a_body(3) = 0;
+    % a_body(3) = 0;
     acc_t = ([0;0;9.81] + R'* ([0;0; thrustt] + [a_body(1); a_body(2); a_body(3)]))';
     acc_w2(i,1) = acc_t(1);
     acc_w2(i,2) = acc_t(2);
@@ -151,11 +153,11 @@ for i = st:1:length(t)
     % METHOD3: (Tarek Hamel + coriolis + altitude)
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
     % thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
-    kd = thrustt * [-kdx3 0 0; 0 -kdy3 0; 0 0 -kdy3];
-    a_body = (kd * R * vel_w3(i-1, 1:3)')';% + cross(gyro(i,:), bodyVel); 
+    kd = thrustt * [-kdx3 0 0; 0 -kdy3 0; 0 0 -1.5 * kdy3];
+    a_body = (kd * R * vel_w3(i-1, 1:3)')';
 %     a_body(1) = alpha * accel(i,1) + (1-alpha) * a_body(1); 
 %     a_body(2) = alpha * accel(i,2) + (1-alpha) * a_body(2); 
-    acc_t = ([0;0;9.81] + R'* ([0;0; 0.96*thrustt] + [a_body(1); a_body(2); a_body(3)]))';
+    acc_t = ([0;0;9.81] + R'* ([0;0; thrustt] + [a_body(1); a_body(2); a_body(3)]))';
     acc_w3(i,1) = acc_t(1);
     acc_w3(i,2) = acc_t(2);
     acc_w3(i,3) = acc_t(3);

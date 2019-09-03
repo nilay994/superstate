@@ -15,7 +15,11 @@
 2019-07-01_14_34_31.csv - july agile push for thrust
 2019-07-03_13_26_13.csv - july 90 turn, good altitude, use thrust.m
 thruststate2woacc-super.mat has really good thrust fits, use x(3) -ve since somehow it is positive while training wtff!!
-
+2019-09-02_13_12_24.csv - up down for z drag est: kz = 0.001
+2019-09-02_13_25_27.csv - lateral excite for thrust co-efficient, kh = -0.05
+2019-09-02_16_07_35.csv - christophe circle
+2019-09-02_16_01_26.csv - christophe circle
+2019-09-02_16_10_24.csv - christophe circle
 
 # required logs: 
 longer slower is fine, need high resolution time

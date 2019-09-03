@@ -199,6 +199,11 @@ void optimal_calc()
 	/* Get and print solution of first QP. */
 	real_t xOpt[sizes];
 
+	// attitude control listens at 960 hz
+	// generating optimal sequence at 100 hz
+	// make ten copies of the same number and flush it at 960 hz
+	// delay the loop by the same frequency as optimal seq generation (100hz)
+	int copies = 10;
 
 	if (mpctry.init(newH,newf, lb,ub, nWSR, 0) == SUCCESSFUL_RETURN) {
 
@@ -227,7 +232,6 @@ void optimal_calc()
 double roll_est = 0;
 double pitch_est = 0;
 double yaw_est = 0;
-
 void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg) 
 {
     static double timeStamp_old = 0;
@@ -251,7 +255,6 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	} 
 	else {
 		dt_est = groundTruth_msg.transforms[0].header.stamp.toSec() - timeStamp_old;
-
 		xVel_est = (x_est - x_est_old) / dt_est;
 		yVel_est = (y_est - y_est_old) / dt_est;
 		zVel_est = (z_est - z_est_old) / dt_est;
@@ -260,7 +263,6 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	x_est_old = x_est;
 	y_est_old = y_est;
 	z_est_old = z_est;
-
 
 	double qx = groundTruth_msg.transforms[0].transform.rotation.x;
 	double qy = groundTruth_msg.transforms[0].transform.rotation.y;
@@ -318,7 +320,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	// publish to control loop commands in controllermavlab
-  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 100);
+  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 500);
 	pub_resetdrone = nh.advertise<std_msgs::Empty>("/uav/collision", 1);
 
 	ros::Subscriber ratethrust_sub;

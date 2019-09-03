@@ -20,6 +20,8 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
         bodyVel_t = R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)];
 
         bodyAcc(i,1) = bodyAcc_t(1);
+        % bodyAcc(i,1) = filt_a(i,1) + 9.81 * sin(theta); % specific force
+        % vs real acceleration
         bodyVel(i,1) = bodyVel_t(1);
 
         bodyAcc(i,2) = bodyAcc_t(2);
@@ -33,13 +35,13 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
     
     %% linear drag model, simple
     figure; 
-    plot(bodyVel(:,1), filt_a(:,1), '.', 'Color', [180/255, 180/255, 180/255]); 
+    plot(bodyVel(:,1), bodyAcc(:,1), '.', 'Color', [180/255, 180/255, 180/255]); 
     hold on; grid on;
-    [p_x, S] = polyfit(bodyVel(:,1), filt_a(:,1), 1);
+    [p_x, S] = polyfit(bodyVel(:,1), bodyAcc(:,1), 1);
     yaxis = polyval(p_x, bodyVel(:,1), S);
     plot(bodyVel(:,1), yaxis, '-r', 'LineWidth', 2);
     xlabel('v^B_x (m/s)'); ylabel('a^B_x (m/s^2)');
-    r2calc = 1 - (S.normr/norm(filt_a(:,1)) - mean(filt_a(:,1)))^2;
+    r2calc = 1 - (S.normr/norm(bodyAcc(:,1)) - mean(bodyAcc(:,1)))^2;
     title(['basic linear drag model, ', 'R^2 fit of: ', num2str(r2calc)]);
     kdx1 = -p_x(1);
 
@@ -133,7 +135,8 @@ function [kdx1, kdy1, kdx2, kdy2, kdx3, kdy3] = dragEst(angBody, filt_a, optiAcc
     subplot(2,1,1);
     plot(t, filt_opti(:,1)); hold on; grid on;
     plot(t, filt_a(:,1));
-    plot(t, -kdx3 * T(:,1).* bodyVel(:,1));
+    % plot(t, -kdx3 * T(:,1).* bodyVel(:,1));
+    plot(t, -kdx1 * bodyVel(:,1));
     legend('a_x (optiTrack)', 'filt_{ax}', 'drag model');
     title('lateral x acceleration, body frame');
 
