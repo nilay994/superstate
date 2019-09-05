@@ -31,11 +31,11 @@ banging_phi   = zeros(tries,1);
 blah = 2;
 %for blah = 1:1:tries
 while ((banging_theta(blah-1)) < 90 && (banging_phi(blah-1) < 90))
-    pos0 = [-10, 12];
-    posf = [-0.37, -12.23]; 
+    pos0 = [-2.7, 2.15];
+    posf = [2.2, -2.5]; 
 
     vel0 = [0, 0];
-    velf = [5, 0];
+    velf = [0, -2];
 
     x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
     xd = [velf(1); posf(1); velf(2); posf(2)];

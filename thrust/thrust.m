@@ -6,7 +6,8 @@ clc;
 close all;
 clear all;
 % what worked for drag est, fits well for thrust model, also mean of acceleration is good
-filename = '../logs/2019-09-02_13_12_24.csv'; 
+filename = '../logs/2019-09-02_16_01_26.csv'; 
+%filename = '../logs/2019-09-02_13_12_24.csv'; 
 % filename = '../logs/2019-07-03_13_26_13.csv';
 M = csvread(filename, 1, 0);
 col = size(M,2);

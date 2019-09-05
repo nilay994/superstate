@@ -75,7 +75,7 @@ FILE *plot_f;
 attitudeNode::attitudeNode(ros::NodeHandle nh)
 {
   // keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, &attitudeNode::keyboard_cb, this);
-  optimalcmd_sub = nh.subscribe("/optimalcmd", 1000, &attitudeNode::optimalcmd_cb, this);
+  optimalcmd_sub = nh.subscribe("/optimalcmd", 1, &attitudeNode::optimalcmd_cb, this);
   gt_sub = nh.subscribe("/tf", 1000, &attitudeNode::gtCallback, this);
   imu_sub = nh.subscribe("/uav/sensors/imu", 1000, &attitudeNode::imu_cb, this);
 

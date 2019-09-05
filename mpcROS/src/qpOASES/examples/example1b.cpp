@@ -74,14 +74,13 @@ double roll_cmd_opt  = 0;
 double vel_x_opt = 0;
 double vel_y_opt = 0;
 
-
 USING_NAMESPACE_QPOASES
 
 float phi_cmd[MAX_N];
 float theta_cmd[MAX_N];
 
-float phi_cmd_long[MAX_N * 100];
-float theta_cmd_long[MAX_N* 100];
+// float phi_cmd_long[MAX_N * 100];
+// float theta_cmd_long[MAX_N* 100];
 
 unsigned int N;
 void optimal_calc()
@@ -180,7 +179,6 @@ void optimal_calc()
 	}
 	*/ 
 
-	
 	/* Setting up QProblemB object. */
 	QProblemB mpctry(2*N);  // our class of problem, we don't have any constraints on position or velocity, just the inputs
 	// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
@@ -208,20 +206,12 @@ void optimal_calc()
 	if (mpctry.init(newH,newf, lb,ub, nWSR, 0) == SUCCESSFUL_RETURN) {
 
 		if (mpctry.getPrimalSolution(xOpt) == SUCCESSFUL_RETURN) {
-
-			// cout << "U: " << endl;
 			//to check row or column major 
 			int j = 0;
 			int last_idx = 0;
 			for (int i=0; i<N; i++) {
-				cout << xOpt[i] << ",";
 				theta_cmd[i] = (float) xOpt[2*i];
 				phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
-				for (; j<last_idx + 100; j++) {					
-					theta_cmd_long[j] = theta_cmd[i];
-					phi_cmd_long[j]   = phi_cmd[i];
-				}
-				last_idx = j;
 			}
 			printf("\nfval = %e\n\n", mpctry.getObjVal());
 		}
@@ -293,18 +283,6 @@ void ratethrust_cb(const mav_msgs::RateThrust &command)
 		opt_cmd.thrust.z = command.thrust.z;
 		optimalcmd_pub.publish(opt_cmd);
 	}
-		// printf("manual mode \n");
-	// }
-	/*
-	if (command.angular_rates.y == (-1) || joystickoptimal) {
-		lock_optimal = 1;
-		printf("starting optimal control calc\n");
-		if (optimal_nilay == 1) {
-			optimal_calc();
-		}
-		else {
-		}
-	}*/
 }
 
 void resetdrone_cb(std_msgs::Empty::Ptr msg) {
@@ -320,7 +298,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	// publish to control loop commands in controllermavlab
-  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 500);
+  	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 1);
 	pub_resetdrone = nh.advertise<std_msgs::Empty>("/uav/collision", 1);
 
 	ros::Subscriber ratethrust_sub;

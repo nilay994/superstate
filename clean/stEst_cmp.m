@@ -12,7 +12,7 @@ filename = '../logs/2019-09-02_16_01_26.csv';
 % low?
 M = csvread(filename, 1, 0);
 
-M = M(1:5000, :);
+M = M(1:4000, :);
 col = size(M,2);
 
 accel = M(:,2:4)./1024;  % INT32_ACCEL_FRAC
@@ -153,7 +153,7 @@ for i = st:1:length(t)
     % METHOD3: (Tarek Hamel + coriolis + altitude)
     % bodyVel = (R * [optiVel(i,1); optiVel(i,2); optiVel(i,3)]);
     % thrust(i,:) = (R * [optiAcc(i,1); optiAcc(i,2); (optiAcc(i,3) - 9.81)])';
-    kd = thrustt * [-kdx3 0 0; 0 -kdy3 0; 0 0 -1.5 * kdy3];
+    kd = thrustt * [-kdx3 0 0; 0 -kdy3 0; 0 0 -0.8 * kdy3];
     a_body = (kd * R * vel_w3(i-1, 1:3)')';
 %     a_body(1) = alpha * accel(i,1) + (1-alpha) * a_body(1); 
 %     a_body(2) = alpha * accel(i,2) + (1-alpha) * a_body(2); 
