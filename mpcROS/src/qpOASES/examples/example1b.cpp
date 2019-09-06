@@ -50,7 +50,7 @@
 using namespace std;
 using namespace Eigen;
 
-#define MAX_N 100
+#define MAX_N 1600
 
 // for gtcallback
 double x_est = -24.0;
@@ -79,22 +79,9 @@ USING_NAMESPACE_QPOASES
 float phi_cmd[MAX_N];
 float theta_cmd[MAX_N];
 
-// float phi_cmd_long[MAX_N * 100];
-// float theta_cmd_long[MAX_N* 100];
-
 unsigned int N;
 void optimal_calc()
 {
-	double pos0[2] = {x_est, y_est};
-	double posf[2] = {-0.37, -12.23};
-
-	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {8, 0};
-	float dt = 0.1;
-	float T = 5.0; //sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / 4.0;
-	N = round(T/dt);
-	printf("Horizon: %d\n", N);  
-	
 	Eigen::Matrix<double, 4, 4> A;
 	A << 0.9512, 0, 0, 0,
 		0.09754, 1, 0, 0,
@@ -109,112 +96,121 @@ void optimal_calc()
 
 	Eigen::Matrix<double, 4, 4> P;
 	P << 1,0,0,0,
-		0,10,0,0,
+		0,5,0,0,
 		0,0,1,0,
-		0,0,0,10;
-	
-	// Eigen::Matrix<double, 4, Dynamic> R;
-	Eigen::MatrixXd oldR(4, 2 * MAX_N);
-	oldR.resize(4, 2*N);
-	
-	oldR.block(0, 2*N-2, 4, 2) =  B;
-	Eigen::Matrix<double, 4, 4> AN = A;
+		0,0,0,5;
 
-	for(int i=1; i<N; i++) {
-		oldR.block(0, 2*N-2*(i+1), 4, 2) =  A * oldR.block(0, 2*N-2*i, 4, 2);
-		AN = A * AN; 
-	}
+	double pos0[2] = {x_est, y_est};
+	double posf[2] = {-0.37, -12.23};
 
-	Eigen::MatrixXd R = oldR.block(0,0,4,2*N);
+	double vel0[2] = {xVel_est, yVel_est};
+	double velf[2] = {3.5, 0};
+	float dt = 0.1;
+	float bangedtheta = 0; float bangedphi = 0;
+	float iterate = 1;
+	int limit_reached = 0;
+	while(bangedphi < 30 && bangedtheta < 30) {
+		// limit_reached = 0;
+		// float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / iterate;
+		float T = 10 / iterate;
+		N = round(T/dt);
+		printf("Horizon: %d\n", N);  
+		
+		// Eigen::Matrix<double, 4, Dynamic> R;
+		Eigen::MatrixXd oldR(4, 2 * MAX_N);
+		oldR.resize(4, 2*N);
+		
+		oldR.block(0, 2*N-2, 4, 2) =  B;
+		Eigen::Matrix<double, 4, 4> AN = A;
 
-	Eigen::MatrixXd old_H = 2 * (R.transpose() * P * R);
-	
-	Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
-	eye.resize(2*N, 2*N);
-	eye.setIdentity();
-	Eigen::MatrixXd H = 0.5 * (old_H + old_H.transpose() + eye);
-
-	Eigen::Matrix<double, 4, 1> x0; Eigen::Matrix<double, 4, 1> xd;
-	x0 << vel0[0], pos0[0], vel0[1], pos0[1];
-	xd << velf[0], posf[0], velf[1], posf[1];
-	
-	Eigen::MatrixXd f;
-	f = (2 * ((AN * x0)- xd)).transpose() * P * R;
-
-	// to compare with matlab 
-	/*
-	cout << "size of H: " << H.rows() << " x " << H.cols() << endl; 
-	cout << "H \n" << H << endl;
-	cout << "size of f: " << f.rows() << " x " << f.cols() << endl; 
-	cout << "f \n" << f << endl; 
-	*/
-
-	float maxbank = 35.0 * 3.142 / 180.0;
-
-	int sizes = 2 * N;
-
-	real_t ub[sizes];
-	real_t lb[sizes];
-	
-	for (int i=0; i<sizes; i++) {
-		ub[i] = maxbank;
-		lb[i] = -maxbank;
-	}
-	
-	real_t newH[sizes * sizes];
-	real_t newf[sizes];
-
-  	Eigen::Map<MatrixXd>(newH, sizes, sizes) =   H.transpose();
-	Eigen::Map<MatrixXd>(newf, 1, sizes) = f;
-
-	/* 
-	// to check row or column major 
-	for (int i=0; i<sizes*sizes; i++) {
-		cout << newH[i] << ",";
-	}
-	
-	// to check row or column major 
-	for (int i=0; i<sizes; i++) {
-		cout << newf[i] << ",";
-	}
-	*/ 
-
-	/* Setting up QProblemB object. */
-	QProblemB mpctry(2*N);  // our class of problem, we don't have any constraints on position or velocity, just the inputs
-	// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
-
-	Options optionsmpc;
-	//options.enableFlippingBounds = BT_FALSE;
-	optionsmpc.printLevel = PL_DEBUG_ITER;
-	optionsmpc.initialStatusBounds = ST_INACTIVE;
-	optionsmpc.numRefinementSteps = 1;
-	// optionsmpc.enableCholeskyRefactorisation = 1;
-	mpctry.setOptions(optionsmpc);
-
-	/* Solve first QP. */
-	int nWSR = 100;
-	
-	/* Get and print solution of first QP. */
-	real_t xOpt[sizes];
-
-	// attitude control listens at 960 hz
-	// generating optimal sequence at 100 hz
-	// make ten copies of the same number and flush it at 960 hz
-	// delay the loop by the same frequency as optimal seq generation (100hz)
-	int copies = 10;
-
-	if (mpctry.init(newH,newf, lb,ub, nWSR, 0) == SUCCESSFUL_RETURN) {
-
-		if (mpctry.getPrimalSolution(xOpt) == SUCCESSFUL_RETURN) {
-			//to check row or column major 
-			int j = 0;
-			int last_idx = 0;
-			for (int i=0; i<N; i++) {
-				theta_cmd[i] = (float) xOpt[2*i];
-				phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
-			}
-			printf("\nfval = %e\n\n", mpctry.getObjVal());
+		for(int i=1; i<N; i++) {
+			oldR.block(0, 2*N-2*(i+1), 4, 2) =  A * oldR.block(0, 2*N-2*i, 4, 2);
+			AN = A * AN; 
 		}
+
+		Eigen::MatrixXd R = oldR.block(0,0,4,2*N);
+		Eigen::MatrixXd old_H = 2 * (R.transpose() * P * R);
+		Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
+		eye.resize(2*N, 2*N);
+		eye.setIdentity();
+		Eigen::MatrixXd H = 0.5 * (old_H + old_H.transpose() + eye);
+
+		Eigen::Matrix<double, 4, 1> x0; Eigen::Matrix<double, 4, 1> xd;
+		x0 << vel0[0], pos0[0], vel0[1], pos0[1];
+		xd << velf[0], posf[0], velf[1], posf[1];
+		
+		Eigen::MatrixXd f;
+		f = (2 * ((AN * x0)- xd)).transpose() * P * R;
+
+		// to compare with matlab 
+		/* 	cout << "size of H: " << H.rows() << " x " << H.cols() << endl; 
+		cout << "H \n" << H << endl;
+		cout << "size of f: " << f.rows() << " x " << f.cols() << endl; 
+		cout << "f \n" << f << endl; */
+
+		float maxbank = 25.0 * 3.142 / 180.0;
+		int sizes = 2 * N;
+
+		real_t ub[sizes]; real_t lb[sizes];
+		
+		for (int i=0; i<sizes; i++) {
+			ub[i] = maxbank;
+			lb[i] = -maxbank;
+		}
+		
+		real_t newH[sizes * sizes];	real_t newf[sizes];
+		Eigen::Map<MatrixXd>(newH, sizes, sizes) = H.transpose();
+		Eigen::Map<MatrixXd>(newf, 1, sizes) = f;
+
+		/* 	// to check row or column major 
+		for (int i=0; i<sizes*sizes; i++) {
+			cout << newH[i] << ",";
+		}
+		// to check row or column major 
+		for (int i=0; i<sizes; i++) {
+			cout << newf[i] << ",";
+		}	*/ 
+		/* Setting up QProblemB object. */
+		QProblemB mpctry(2*N);  // our class of problem, we don't have any constraints on position or velocity, just the inputs
+		// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
+
+		Options optionsmpc;
+		//options.enableFlippingBounds = BT_FALSE;
+		optionsmpc.printLevel = PL_HIGH;
+		optionsmpc.initialStatusBounds = ST_INACTIVE;
+		optionsmpc.numRefinementSteps = 1;
+		// optionsmpc.enableCholeskyRefactorisation = 1;
+		mpctry.setOptions(optionsmpc);
+
+		/* Solve first QP. */
+		int nWSR = 100;
+		
+		/* Get and print solution of first QP. */
+		real_t xOpt[sizes];
+		if (mpctry.init(newH,newf, lb,ub, nWSR, 0) == SUCCESSFUL_RETURN) {
+			float bangedtheta_acc = 0;
+			float bangedphi_acc = 0;
+			if (mpctry.getPrimalSolution(xOpt) == SUCCESSFUL_RETURN) {
+				for (int i=0; i<N; i++) {
+					theta_cmd[i] = (float) xOpt[2*i];
+					phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
+					if ((fabs(fabs(theta_cmd[i])-maxbank) < 0.01) || (fabs(fabs(phi_cmd[i])-maxbank) < 0.01)) {
+						bangedtheta_acc += fabs(theta_cmd[i]);
+						bangedphi_acc   += fabs(phi_cmd[i]);
+					}
+				}
+				bangedtheta = bangedtheta_acc / (N * maxbank) * 100;
+				bangedphi   = bangedphi_acc   / (N * maxbank) * 100;
+				printf("fval = %e, bangedtheta: %f, bangedphi: %f\n", mpctry.getObjVal(), bangedtheta, bangedphi);
+			}
+			else {
+				printf("QP couldn't be solved! \n");
+			}
+		}
+		else {
+			printf("QP couldn't be initialized! \n");
+		}
+		iterate = iterate * 1.2;
 	}
 }
 
@@ -265,10 +261,12 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 }
 
 bool lock_optimal = 0;
+double start = 0;
 void optimalJoystick_cb(std_msgs::Empty::Ptr msg) {
-   	lock_optimal = 1;
 	printf("starting optimal control calc\n");
 	optimal_calc();
+	lock_optimal = 1;
+	start = ros::Time::now().toSec();
 }
 
 ros::Publisher optimalcmd_pub;
@@ -311,7 +309,7 @@ int main(int argc, char** argv)
 	joystick_sub   = nh.subscribe("/control_nodes/triggeroptimal", 1, optimalJoystick_cb);
 	resetdrone_sub = nh.subscribe("/control_nodes/resetdrone", 1, resetdrone_cb);
 
-	optimal_calc();
+	// optimal_calc();
 	/*
 	This function returns one of the following values:
 	• 0: QP was solved,
@@ -330,6 +328,7 @@ int main(int argc, char** argv)
 	while(ros::ok()) {
 		mav_msgs::RateThrust opt_cmd;
 		if(lock_optimal && i < N) {
+			
 			newAng_theta = cos(yaw_est) * theta_cmd[i] - sin(yaw_est) * phi_cmd[i];
 			newAng_phi = sin(yaw_est) * theta_cmd[i] + cos(yaw_est) * phi_cmd[i];
 			
@@ -347,7 +346,8 @@ int main(int argc, char** argv)
 			opt_cmd.angular_rates.z = 0;
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
-			cout << "Finised sequence\n";
+			double completion_time = ros::Time::now().toSec() - start;
+			printf("Finised sequence in %f seconds \n", completion_time);
 			i = 0;
 			lock_optimal = 0;
 		}
