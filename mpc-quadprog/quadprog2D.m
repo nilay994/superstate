@@ -40,7 +40,7 @@ while ((banging_theta(blah-1)) < 90 && (banging_phi(blah-1) < 90))
     x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
     xd = [velf(1); posf(1); velf(2); posf(2)];
 
-    h = 0.1;
+    h = 0.02;
     totalT = 10 * (sqrt((pos0(1) - posf(1))^2 + (pos0(2) - posf(2))^2)) / ...
              ((sqrt((vel0(1) - velf(1))^2 + (vel0(2) - velf(2))^2)) * blah) ;
     % N = 600;           % 2 seconds
@@ -165,10 +165,10 @@ while ((banging_theta(blah-1)) < 90 && (banging_phi(blah-1) < 90))
     % figure;
     plot(totalT, fval, 'xr'); hold on;
     %text(blah, fval, num2str(fval));
-    text(totalT, cost,       "phi: "   + num2str(banging_phi(blah))+" %");
-    text(totalT, cost + 100, "theta: " + num2str(banging_theta(blah))+" %");
+    %text(totalT, cost,       "phi: "   + num2str(banging_phi(blah))+" %");
+    %text(totalT, cost + 100, "theta: " + num2str(banging_theta(blah))+" %");
     plot(totalT, cost, 'xb');
-    text(totalT, cost + 200, "T: " + num2str(totalT) + " sec");
+    %text(totalT, cost + 200, "T: " + num2str(totalT) + " sec");
     plot(totalT, banging_phi(blah), 'xg');
     plot(totalT, banging_theta(blah), 'xg');
     grid on;

@@ -100,19 +100,25 @@ void optimal_calc()
 		0,0,1,0,
 		0,0,0,5;
 
+	// position final is one of the gates in the arena
 	double pos0[2] = {x_est, y_est};
 	double posf[2] = {-0.37, -12.23};
 
+	// go through the gate with 3.5m/s forward vel
 	double vel0[2] = {xVel_est, yVel_est};
 	double velf[2] = {3.5, 0};
+
+	// above state space matrices are discretized at 100 milliseconds/10 Hz
 	float dt = 0.1;
+
+	// break optimizer if more than 30% of banging
 	float bangedtheta = 0; float bangedphi = 0;
 	float iterate = 1;
-	int limit_reached = 0;
 	while(bangedphi < 30 && bangedtheta < 30) {
-		// limit_reached = 0;
 		// float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / iterate;
-		float T = 10 / iterate;
+		
+		// assumption: can reach anywhere in the arena if I have ten seconds 
+		float T = 10 / iterate; 
 		N = round(T/dt);
 		printf("Horizon: %d\n", N);  
 		
@@ -142,12 +148,7 @@ void optimal_calc()
 		Eigen::MatrixXd f;
 		f = (2 * ((AN * x0)- xd)).transpose() * P * R;
 
-		// to compare with matlab 
-		/* 	cout << "size of H: " << H.rows() << " x " << H.cols() << endl; 
-		cout << "H \n" << H << endl;
-		cout << "size of f: " << f.rows() << " x " << f.cols() << endl; 
-		cout << "f \n" << f << endl; */
-
+		// saturate at not more than 25 degrees of banking in roll or pitch
 		float maxbank = 25.0 * 3.142 / 180.0;
 		int sizes = 2 * N;
 
@@ -157,40 +158,35 @@ void optimal_calc()
 			ub[i] = maxbank;
 			lb[i] = -maxbank;
 		}
-		
+		// populate hessian and linear term
 		real_t newH[sizes * sizes];	real_t newf[sizes];
 		Eigen::Map<MatrixXd>(newH, sizes, sizes) = H.transpose();
 		Eigen::Map<MatrixXd>(newf, 1, sizes) = f;
 
-		/* 	// to check row or column major 
-		for (int i=0; i<sizes*sizes; i++) {
-			cout << newH[i] << ",";
-		}
-		// to check row or column major 
-		for (int i=0; i<sizes; i++) {
-			cout << newf[i] << ",";
-		}	*/ 
+		// our class of problem, we don't have any constraints on position or velocity, just the inputs
 		/* Setting up QProblemB object. */
-		QProblemB mpctry(2*N);  // our class of problem, we don't have any constraints on position or velocity, just the inputs
-		// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
+		QProblemB mpctry(2*N);  
 
+		// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
 		Options optionsmpc;
 		//options.enableFlippingBounds = BT_FALSE;
-		optionsmpc.printLevel = PL_HIGH;
+		optionsmpc.printLevel = PL_HIGH;  // DEBUG level high, but the prints are muted in the library :(
 		optionsmpc.initialStatusBounds = ST_INACTIVE;
 		optionsmpc.numRefinementSteps = 1;
 		// optionsmpc.enableCholeskyRefactorisation = 1;
 		mpctry.setOptions(optionsmpc);
 
-		/* Solve first QP. */
+		/* not sure: take 100 tries to solve the QP? */
 		int nWSR = 100;
 		
-		/* Get and print solution of first QP. */
+		/* Initialize QP. */
 		real_t xOpt[sizes];
 		if (mpctry.init(newH,newf, lb,ub, nWSR, 0) == SUCCESSFUL_RETURN) {
 			float bangedtheta_acc = 0;
 			float bangedphi_acc = 0;
+			/* solve the QP */
 			if (mpctry.getPrimalSolution(xOpt) == SUCCESSFUL_RETURN) {
+				/* populate the command buffers */
 				for (int i=0; i<N; i++) {
 					theta_cmd[i] = (float) xOpt[2*i];
 					phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
