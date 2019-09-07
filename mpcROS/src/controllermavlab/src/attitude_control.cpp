@@ -46,13 +46,7 @@ double kd_yaw = 0.03;
 
 double kp_yawRate = 1.5;  
 double kp_hVel = 10.0;
-
-
-
 double zVel_cmd = 9.81;
-
-FILE *plot_f;
-
 
 attitudeNode::attitudeNode(ros::NodeHandle nh)
 {
@@ -63,15 +57,10 @@ attitudeNode::attitudeNode(ros::NodeHandle nh)
   
   // publish to drone dynamics 
   angular_rate_cmd_pub = nh.advertise<mav_msgs::RateThrust>("/uav/input/rateThrust", 1);
-  plot_f = fopen("plot.csv", "w+");
-
 }
 
 attitudeNode::~attitudeNode()
 {
-  // cout << "Crashed at: " << clockTakeoff_msg.clock.toSec() 
-	fclose(plot_f);
-
 }
 
 
@@ -171,13 +160,6 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	// angular_rate_cmd.angular_rates.z = d_yaw_cmd;
 
 	angular_rate_cmd_pub.publish(angular_rate_cmd);
-
-  // if (dist_to_target < 0.1) {
-  fprintf(plot_f, "%f,%f,%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
-        x_est, y_est, z_est,
-        pitch_est, roll_est,
-        pitch_cmd, roll_cmd);
-  //}
   
 	timeStamp_old = groundTruth_msg.transforms[0].header.stamp.toSec();
 	x_est_old = x_est;

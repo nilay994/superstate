@@ -73,15 +73,17 @@ double pitch_cmd_opt = 0;
 double roll_cmd_opt  = 0;
 double vel_x_opt = 0;
 double vel_y_opt = 0;*/
-
+FILE *plotopt_f;
 USING_NAMESPACE_QPOASES
 
 float phi_cmd[MAX_N];
 float theta_cmd[MAX_N];
 
 unsigned int N;
-void optimal_calc()
-{
+bool lock_optimal = 0;
+
+
+void optimal_calc() {
 	Eigen::Matrix<double, 4, 4> A;
 	A << 0.9512, 0, 0, 0,
 		0.09754, 1, 0, 0,
@@ -254,9 +256,14 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
 	pitch_est = (asin(2*qw*qy - 2*qz*qx));
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
+
+	if (lock_optimal) {
+		fprintf(plotopt_f, "%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
+        x_est, y_est, z_est, pitch_est, roll_est);
+	}
 }
 
-bool lock_optimal = 0;
+
 double start = 0;
 void optimalJoystick_cb(std_msgs::Empty::Ptr msg) {
 	printf("starting optimal control calc\n");
@@ -288,7 +295,7 @@ void resetdrone_cb(std_msgs::Empty::Ptr msg) {
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "qpoases_node");
-
+	plotopt_f = fopen("plotopt.csv", "w+");
 	ros::NodeHandle nh;
 
 	// publish to control loop commands in controllermavlab

@@ -20,6 +20,7 @@ double zVel_est = 0;
 bool firstMsg = 1;
 double dt_est = 0.001;
 
+FILE *plotpid_f;
 int lock_pid = 0;
 
 ros::Publisher pidcmd_pub;
@@ -80,6 +81,13 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
 	pitch_est = (asin(2*qw*qy - 2*qz*qx));
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
+
+    if (lock_pid) {
+        fprintf(plotpid_f, "%f,%f,%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
+                x_est, y_est, z_est,
+                pitch_est, roll_est,
+                pitch_cmd, roll_cmd);
+    }
 }
 
 ros::Publisher pub_resetdrone;
@@ -90,7 +98,7 @@ void resetdrone_cb(std_msgs::Empty::Ptr msg) {
 
 void pidJoystick_cb(std_msgs::Empty::Ptr msg) {
     printf("latching PID controller!\n");
-  lock_pid = 1;
+    lock_pid = 1;
 }
 
 
@@ -105,7 +113,7 @@ int main(int argc, char** argv)
     // publish to control loop commands in controllermavlab
   	pidcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 1);
 	pub_resetdrone = nh.advertise<std_msgs::Empty>("/uav/collision", 1);
-
+    plotpid_f = fopen("plotpid.csv", "w+");
     // 960 Hz control loop
     ros::Rate rate(960);
 
