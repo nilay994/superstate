@@ -8,8 +8,10 @@ catkin_package(INCLUDE_DIRS include CATKIN_DEPENDS roscpp std_msgs mav_msgs sens
 include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME}_node src/attitude_control.cpp)
+add_executable(pid_node src/pidcontrol.cpp)
 
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
+target_link_libraries(pid_node ${catkin_LIBRARIES})
 
 install(DIRECTORY
 launch

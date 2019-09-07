@@ -84,12 +84,14 @@ public:
   ros::Subscriber odometry_sub;
   ros::Subscriber imu_sub;
   ros::Subscriber gt_sub;
-
+  ros::Subscriber pidJoystick_sub;
+ 
 
   void keyboard_cb(const mav_msgs::RateThrust &command);
   void optimalcmd_cb(const mav_msgs::RateThrust &optcmd);
   void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg);
   void imu_cb(const sensor_msgs::Imu &imuMsg);
+  void pidJoystick_cb(std_msgs::Empty::Ptr msg);
   /*
   void OdometryCallback(const nav_msgs::Odometry &odom_msg); 
   

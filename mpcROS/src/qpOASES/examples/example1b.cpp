@@ -64,7 +64,7 @@ double zVel_est = 0;
 double dt_est = 0.001;
 bool firstMsg = 1;
 
-double pitch_cmd_pid = 0;
+/*double pitch_cmd_pid = 0;
 double roll_cmd_pid  = 0;
 double vel_x_pid = 0;
 double vel_y_pid = 0;
@@ -72,7 +72,7 @@ double vel_y_pid = 0;
 double pitch_cmd_opt = 0;
 double roll_cmd_opt  = 0;
 double vel_x_opt = 0;
-double vel_y_opt = 0;
+double vel_y_opt = 0;*/
 
 USING_NAMESPACE_QPOASES
 

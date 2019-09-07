@@ -48,16 +48,22 @@ add_library(${PROJECT_NAME} ${SRCS})
 #
 # building example applications
 #
-
 set(EXAMPLES
   example1
-  example1b)
+  example1a
+  example1b
+  example2
+  example3
+  example3b
+  example4
+  example5
+  exampleLP
+  qrecipe)
  
 foreach(EXAMPLE ${EXAMPLES})
   add_executable(${EXAMPLE} examples/${EXAMPLE}.cpp)
   target_link_libraries(${EXAMPLE} ${PROJECT_NAME} ${catkin_LIBRARIES})
 endforeach(EXAMPLE)
-
 
 ################
 ## Installing ##
