@@ -53,6 +53,7 @@ using namespace Eigen;
 #define MAX_N 1600
 
 // for gtcallback
+int i = 0;
 double x_est = -24.0;
 double y_est = -2.0;
 double z_est = 4;
@@ -63,7 +64,7 @@ double zVel_est = 0;
 
 double dt_est = 0.001;
 bool firstMsg = 1;
-
+int invoke_cnt = 1;
 /*double pitch_cmd_pid = 0;
 double roll_cmd_pid  = 0;
 double vel_x_pid = 0;
@@ -82,8 +83,11 @@ float theta_cmd[MAX_N];
 unsigned int N;
 bool lock_optimal = 0;
 
+// saturate at not more than 25 degrees of banking in roll or pitch
+float maxbank = 25.0 * 3.142 / 180.0;
 
 void optimal_calc() {
+	invoke_cnt = invoke_cnt + 1;
 	Eigen::Matrix<double, 4, 4> A;
 	A << 0.9512, 0, 0, 0,
 		0.09754, 1, 0, 0,
@@ -150,8 +154,6 @@ void optimal_calc() {
 		Eigen::MatrixXd f;
 		f = (2 * ((AN * x0)- xd)).transpose() * P * R;
 
-		// saturate at not more than 25 degrees of banking in roll or pitch
-		float maxbank = 25.0 * 3.142 / 180.0;
 		int sizes = 2 * N;
 
 		real_t ub[sizes]; real_t lb[sizes];
@@ -192,6 +194,7 @@ void optimal_calc() {
 				for (int i=0; i<N; i++) {
 					theta_cmd[i] = (float) xOpt[2*i];
 					phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
+					lock_optimal = 1;
 					if ((fabs(fabs(theta_cmd[i])-maxbank) < 0.01) || (fabs(fabs(phi_cmd[i])-maxbank) < 0.01)) {
 						bangedtheta_acc += fabs(theta_cmd[i]);
 						bangedphi_acc   += fabs(phi_cmd[i]);
@@ -256,20 +259,24 @@ void gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 	roll_est  = (atan2(2*qx*qw + 2*qy*qz, 1 - 2*qx*qx - 2*qy*qy));
 	pitch_est = (asin(2*qw*qy - 2*qz*qx));
 	yaw_est   = (atan2(2*qy*qx + 2*qw*qz, 1 - 2*qy*qy - 2*qz*qz));
-
+	/*
 	if (lock_optimal) {
 		fprintf(plotopt_f, "%f,%f,%f,%f,%f,%f\n", groundTruth_msg.transforms[0].header.stamp.toSec(),
         x_est, y_est, z_est, pitch_est, roll_est);
 	}
+	*/
 }
 
 
 double start = 0;
+ros::Time startrostime;
+
 void optimalJoystick_cb(std_msgs::Empty::Ptr msg) {
-	printf("starting optimal control calc\n");
+	printf("[%d] starting optimal control calc\n", invoke_cnt);
+	i = 0;
 	optimal_calc();
-	lock_optimal = 1;
 	start = ros::Time::now().toSec();
+	startrostime = ros::Time::now();
 }
 
 ros::Publisher optimalcmd_pub;
@@ -291,12 +298,16 @@ void resetdrone_cb(std_msgs::Empty::Ptr msg) {
 	pub_resetdrone.publish(std_msgs::Empty());
 }
 
+
 /** Example for qpOASES main function using the QProblemB class. */
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "qpoases_node");
 	plotopt_f = fopen("plotopt.csv", "w+");
 	ros::NodeHandle nh;
+
+	// for showing the rosbag replay
+	ros::Publisher optimalcmd_cpy = nh.advertise<mav_msgs::RateThrust>("optimalcmdcpy",1);
 
 	// publish to control loop commands in controllermavlab
   	optimalcmd_pub = nh.advertise<mav_msgs::RateThrust>("optimalcmd", 1);
@@ -324,23 +335,29 @@ int main(int argc, char** argv)
 	// int getSimpleStatus();
 
 	ros::Rate loop_rate(10);
-	int i = 0;
+	
 	double newAng_theta = 0;
 	double newAng_phi = 0;
-	
+	mav_msgs::RateThrust opt_cmd;
+	mav_msgs::RateThrust opt_cmd_cpy;
 	while(ros::ok()) {
-		mav_msgs::RateThrust opt_cmd;
+		
 		if(lock_optimal && i < N) {
-			
 			newAng_theta = cos(yaw_est) * theta_cmd[i] - sin(yaw_est) * phi_cmd[i];
-			newAng_phi = sin(yaw_est) * theta_cmd[i] + cos(yaw_est) * phi_cmd[i];
-			
+			newAng_phi = sin(yaw_est) * theta_cmd[i] + cos(yaw_est) * phi_cmd[i];	
 			opt_cmd.angular_rates.x = newAng_phi;
 			opt_cmd.angular_rates.y = newAng_theta;
 			opt_cmd.angular_rates.z = 0;
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
-			cout << "roll: " << phi_cmd[i] * 180/3.142 << ", pitch: " << theta_cmd[i] * 180/3.142 << endl;
+			// cout << "roll: " << phi_cmd[i] * 180/3.142 << ", pitch: " << theta_cmd[i] * 180/3.142 << endl;
+			opt_cmd_cpy.header.stamp = ros::Time::now(); //- startrostime;
+			opt_cmd_cpy.angular_rates.x = newAng_phi * 180/3.142;
+			opt_cmd_cpy.angular_rates.y = newAng_theta * 180/3.142;
+			opt_cmd_cpy.angular_rates.z = maxbank * 180/3.142;
+			opt_cmd_cpy.thrust.z = -maxbank * 180/3.142;
+			optimalcmd_cpy.publish(opt_cmd_cpy);
+
 			i++;
 		}
 		if (i > N-1) {
@@ -353,6 +370,13 @@ int main(int argc, char** argv)
 			printf("Finised sequence in %f seconds \n", completion_time);
 			i = 0;
 			lock_optimal = 0;
+
+			opt_cmd_cpy.angular_rates.x = 0;
+			opt_cmd_cpy.angular_rates.y = 0;
+			opt_cmd_cpy.angular_rates.z = maxbank * 180/3.142;
+			opt_cmd_cpy.thrust.z = -maxbank * 180/3.142;
+			optimalcmd_cpy.publish(opt_cmd_cpy);
+
 		}
 		loop_rate.sleep();
 		ros::spinOnce();
