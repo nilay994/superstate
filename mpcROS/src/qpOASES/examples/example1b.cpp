@@ -89,16 +89,17 @@ float maxbank = 25.0 * 3.142 / 180.0;
 void optimal_calc() {
 	invoke_cnt = invoke_cnt + 1;
 	Eigen::Matrix<double, 4, 4> A;
-	A << 0.9512, 0, 0, 0,
-		0.09754, 1, 0, 0,
-		0, 0, 0.9512, 0,
-		0, 0, 0.09754, 1;
+
+	A << 0.9343, 0, 0, 0,
+		0.09668, 1, 0, 0,
+		0, 0, 0.9446, 0,
+		0, 0, 0.0972, 1;
 
 	Eigen::Matrix<double, 4, 2> B;
-	B << 0.9569, 0,
-		0.04824, 0,
-		0, 0.9569,
-		0, 0.04824;
+	B << 0.9484, 0,
+		0.04796, 0,
+		0, 0.9536,
+		0, 0.04813;
 
 	Eigen::Matrix<double, 4, 4> P;
 	P << 1,0,0,0,
@@ -145,6 +146,7 @@ void optimal_calc() {
 		Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
 		eye.resize(2*N, 2*N);
 		eye.setIdentity();
+		eye = 0.2 * eye; // TODO: verify after this change - augnment to keep hessian invertable says harvard
 		Eigen::MatrixXd H = 0.5 * (old_H + old_H.transpose() + eye);
 
 		Eigen::Matrix<double, 4, 1> x0; Eigen::Matrix<double, 4, 1> xd;
