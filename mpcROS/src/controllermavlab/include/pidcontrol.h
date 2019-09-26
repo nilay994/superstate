@@ -30,22 +30,22 @@
 #include <tf2_ros/transform_broadcaster.h>
 
 
-#define KP_POS_X 1.5
-#define KP_POS_Y 1.5
+#define KP_POS_X 2
+#define KP_POS_Y 2
 
-#define KD_POS_X 0.05
-#define KD_POS_Y 0.05
+#define KD_POS_X 0.02
+#define KD_POS_Y 0.02
 
-#define KP_VEL_X 0.01
-#define KP_VEL_Y 0.01
-#define K_FF_THETA 0.02
-#define K_FF_PHI   0.02
+#define KP_VEL_X 0.02
+#define KP_VEL_Y 0.02
+#define K_FF_THETA 0.03
+#define K_FF_PHI   0.03
 #define KD_VEL_X 0.8
 #define KD_VEL_Y 0.8
 
-#define MAX_VEL_X 4
-#define MAX_VEL_Y 4
-#define MAX_BANK 0.42
+#define MAX_VEL_X 6
+#define MAX_VEL_Y 6
+#define MAX_BANK 0.43
 
 // bound a value to a range [min,max]
 inline double bound_f(double val, double min, double max) {

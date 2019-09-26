@@ -1,4 +1,4 @@
-function getCoord(aH,evnt, arg1, arg2)
+function getCoord(aH, evnt, arg1, arg2)
 drawnow
 f = ancestor(aH,'figure');
 click_type = get(f,'SelectionType');
@@ -22,6 +22,7 @@ if strcmp(click_type,'normal')
             minDist = newDist;
         end
     end
+    finalH
     xp=get(finalH,'Xdata'); %Getting coordinates of line object
     yp=get(finalH,'Ydata');
     % ptH = plot(aH,xp(finalIdx),yp(finalIdx),'k*','MarkerSize',20);

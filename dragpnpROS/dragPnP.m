@@ -95,26 +95,27 @@ end
 %% linear drag model, simple
 
 figure; 
+subplot(2,1,1);
 plot(bodyVel(:,1), bodyAcc(:,1), '.'); 
 hold on; grid on;
 p_x = polyfit(bodyVel(:,1), bodyAcc(:,1), 1);
 yaxis = polyval(p_x, bodyVel(:,1));
-plot(bodyVel(:,1), yaxis);
+plot(bodyVel(:,1), yaxis, 'LineWidth', 2);
+kdx1 = -p_x(1);
 xlabel('vel^B_x (m/s)'); ylabel('acc^B_x (m/s^2)');
-title('gt vel vs acc in body frame');
+title(['ground truth drag kd_x: ', num2str(kdx1)]);
 
-kdx1 = -p_x(1)
-
-figure; 
+subplot(2,1,2); 
 plot(bodyVel(:,2), bodyAcc(:,2), '.'); 
 hold on; grid on;
 p_y = polyfit(bodyVel(:,2), bodyAcc(:,2), 1);
 yaxis = polyval(p_y, bodyVel(:,2));
-plot(bodyVel(:,2), yaxis);
+plot(bodyVel(:,2), yaxis, 'LineWidth', 2);
 xlabel('vel^B_y (m/s)'); ylabel('acc^B_y (m/s^2)');
-title('gt vel vs acc in body frame');
+kdy1 = -p_y(1);
+title(['ground truth drag kd_y: ', num2str(kdy1)]);
 
-kdy1 = -p_y(1)
+
 
 %% now with PnP
 
@@ -156,7 +157,8 @@ pnpAcc = zeros(length(pnpt), 3);
 %%
 figure;
 plot(pnpPos(:,1), pnpPos(:,2), 'xr'); hold on;
-plot(gtPos(:,1), gtPos(:,2)); hold on; axis equal;
+plot(gtPos(:,1), gtPos(:,2)); hold on; axis equal; grid on;
+xlabel('x'); ylabel('y');
 text(gtPos(1,1), gtPos(1,2), 'start');
 text(gtPos(end,1), gtPos(end,2), 'end');
 
@@ -197,12 +199,12 @@ end
 
 
 %% 
-figure;
-plot(pnpt, pnpVel(:,1), '.r'); hold on;
-plot(gt_t, gtVel(:,1));
-figure;
-plot(pnpt, pnpAcc(:,1), '.r'); hold on;
-plot(gt_t, gtAcc(:,1));
+% figure;
+% plot(pnpt, pnpVel(:,1), '.r'); hold on;
+% plot(gt_t, gtVel(:,1));
+% figure;
+% plot(pnpt, pnpAcc(:,1), '.r'); hold on;
+% plot(gt_t, gtAcc(:,1));
 
 %%
 
@@ -236,52 +238,51 @@ for i = 2:1:length(pnpt)
 
 end
 %%
-
-plot(pnpt, pnpbodyAcc(:,1)); hold on;
-plot(pnpt, accelero(:,1));
+% 
+% plot(pnpt, pnpbodyAcc(:,1)); hold on;
+% plot(pnpt, accelero(:,1));
 
 
 
 %%
 figure; 
+subplot(2,1,1);
 plot(pnpbodyVel(:,1), pnpbodyAcc(:,1), '.'); 
 hold on; grid on;
 p_x = polyfit(pnpbodyVel(:,1), pnpbodyAcc(:,1), 1);
 yaxis = polyval(p_x, pnpbodyVel(:,1));
-plot(pnpbodyVel(:,1), yaxis);
+plot(pnpbodyVel(:,1), yaxis, 'LineWidth', 2);
 xlabel('vel^B_x (m/s)'); ylabel('acc^B_x (m/s^2)');
-title('OptiTrack vel vs acc in body frame');
+kdx1 = -p_x(1);
+title(['PnP drag kd_x: ', num2str(kdx1)]);
 
-kdx1 = -p_x(1)
-
-
-figure; 
+subplot(2,1,2);
 plot(pnpbodyVel(:,2), pnpbodyAcc(:,2), '.'); 
 hold on; grid on;
 p_y = polyfit(pnpbodyVel(:,2), pnpbodyAcc(:,2), 1);
 yaxis = polyval(p_y, pnpbodyVel(:,2));
-plot(pnpbodyVel(:,2), yaxis);
+plot(pnpbodyVel(:,2), yaxis, 'LineWidth', 2);
 xlabel('vel^B_y (m/s)'); ylabel('acc^B_y (m/s^2)');
-title('OptiTrack vel vs acc in body frame');
+kdy1 = -p_y(1);
+title(['PnP drag kd_y: ', num2str(kdy1)]);
 
-kdy1 = -p_y(1)
 
 %%
-filename = 'draglog.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
-% ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
-M = csvread(filename, 1, 0);
-col = size(M,2);
-
-fid = fopen(filename);
-a = textscan(fid,'%s',1);
-C = strsplit(string(a),',');
-fclose(fid);
-
-filtert = M(:,1);
-
-g =  9.81;
-pnpAng = M(:,5:7); % find out if these are from optitrack or not
-filterPos = M(:,2:4); % find out if using optiTrack height or not
+% filename = 'draglog.csv';  % plot(optiPos(:,1), optiPos(:,2)); axis equal, log of straight traj
+% % ["counter","accel_unscaled_x","accel_unscaled_y","accel_unscaled_z","gyro_unscaled_p","gyro_unscaled_q","gyro_unscaled_r","mag_unscaled_x","mag_unscaled_y","mag_unscaled_z","phi","theta","psi","opti_x","opti_y","opti_z","time"]
+% M = csvread(filename, 1, 0);
+% col = size(M,2);
+% 
+% fid = fopen(filename);
+% a = textscan(fid,'%s',1);
+% C = strsplit(string(a),',');
+% fclose(fid);
+% 
+% filtert = M(:,1);
+% 
+% g =  9.81;
+% pnpAng = M(:,5:7); % find out if these are from optitrack or not
+% filterPos = M(:,2:4); % find out if using optiTrack height or not
 
 
 

@@ -90,16 +90,16 @@ void optimal_calc() {
 	invoke_cnt = invoke_cnt + 1;
 	Eigen::Matrix<double, 4, 4> A;
 
-	A << 0.9343, 0, 0, 0,
-		0.09668, 1, 0, 0,
-		0, 0, 0.9446, 0,
-		0, 0, 0.0972, 1;
+	A << 0.9448, 0, 0, 0,
+		0.09721, 1, 0, 0,
+		0, 0, 0.9458, 0,
+		0, 0, 0.09726, 1;
 
 	Eigen::Matrix<double, 4, 2> B;
-	B << 0.9484, 0,
-		0.04796, 0,
-		0, 0.9536,
-		0, 0.04813;
+	B << 0.9537, 0,
+		0.04813, 0,
+		0, 0.9542,
+		0, 0.04815;
 
 	Eigen::Matrix<double, 4, 4> P;
 	P << 1,0,0,0,
@@ -113,7 +113,7 @@ void optimal_calc() {
 
 	// go through the gate with 3.5m/s forward vel
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {3.5, 0};
+	double velf[2] = {3.0, 0};
 
 	// above state space matrices are discretized at 100 milliseconds/10 Hz
 	float dt = 0.1;
@@ -121,7 +121,7 @@ void optimal_calc() {
 	// break optimizer if more than 30% of banging
 	float bangedtheta = 0; float bangedphi = 0;
 	float iterate = 1;
-	while(bangedphi < 30 && bangedtheta < 30) {
+	while(bangedphi < 35 && bangedtheta < 35) {
 		// float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / iterate;
 		
 		// assumption: can reach anywhere in the arena if I have ten seconds 
@@ -146,7 +146,8 @@ void optimal_calc() {
 		Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
 		eye.resize(2*N, 2*N);
 		eye.setIdentity();
-		eye = 0.2 * eye; // TODO: verify after this change - augnment to keep hessian invertable says harvard
+		eye = 0.3 * eye; // TODO: verify after this change - augnment to keep hessian invertable says harvard
+		// WARNING: augmenting on diagonals to improve invertability has an impact on the rate of change of input sequence
 		Eigen::MatrixXd H = 0.5 * (old_H + old_H.transpose() + eye);
 
 		Eigen::Matrix<double, 4, 1> x0; Eigen::Matrix<double, 4, 1> xd;

@@ -23,15 +23,6 @@
 
 % clc; close all; clear all;
 
-% drag from ros kdx1 =
-
-%     0.5676
-% 
-% 
-% kdy1 =
-% 
-%     0.5574
-
 % STEP0: setup for time optimal secant method
 tries = 10; 
 
@@ -105,12 +96,6 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
     end
 
     H = 2 * (R' * P * R);
-    % C++ complains during interior point if the diagonals 
-    H = 0.5 * (H + H' + eye(size(H)));
-    a = eig(H);
-    a(a<0)
-    % check if positive definite for convergence?
-    display("minimum eigen value: " + num2str(min(eig(H))))
     
     f = 2 * (((sysZ.A)^N * x0)' - xd') * P * R;
 
@@ -124,8 +109,6 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
     % optimize
     options = optimoptions('quadprog','Display','iter'); %, 'Algorithm', 'trust-region-reflective');
     [U, fval, exitflag, output, lambda] = quadprog(H,f,[],[],[],[], lb, ub, x0, options);
-    
-    lamsum(blah) = sum(abs(lambda.lower)) + sum(abs(lambda.upper));
     
     bangedtheta_acc = 0;
     bangedphi_acc = 0;
@@ -278,7 +261,7 @@ plot(tkumar, phikumar);
 plot(tkumar, 25 * ones(length(tkumar),1), '--r');
 plot(tkumar, -25 * ones(length(tkumar),1), '--r');
 legend('roll (proposed)', 'roll (min snap)', 'saturation');
-xlabel('time');
+xlabel('time'); ylabel('\phi');
 
 subplot(2,1,2);
 plot(t, theta_arr .* 180/3.142); grid on; hold on;
@@ -286,4 +269,4 @@ plot(tkumar, thetakumar);
 plot(tkumar, 25 * ones(length(tkumar),1), '--r');
 plot(tkumar, -25 * ones(length(tkumar),1), '--r');
 legend('pitch (proposed)', 'pitch (min snap)', 'saturation');
-xlabel('time');
+xlabel('time'); ylabel('\theta');
