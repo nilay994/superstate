@@ -216,74 +216,143 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
     %text(blah, cost, num2str(cost));
 end
 %% STEP4: plot the emulation
-% figure;
-% plot(t, states(:,:)); hold on;
-% text(t(1), states(1,1), 'v_x start');
-% text(t(1), states(2,1), 'x start');
-% text(t(1), states(3,1), 'v_y start');
-% text(t(1), states(4,1), 'y start');
-% 
-% plot(t, pos);
-% figure;
-%  plot(t, vel);
-% 
-% text(t(end),posf(1,1),'desired x');
-% text(t(end),posf(1,2),'desired y');
-% text(t(end),velf(1,1),'desired v_x');
-% text(t(end),velf(1,2),'desired v_y');
-% 
-% grid on;
-% xlabel('time'); ylabel('states');
-% legend('v_x', 'x', 'v_y', 'y', 'x nl', 'y nl', 'v_x nl', 'v_y nl');
-
-%%
-
-% figure;
-% plot(pos(:,1), pos(:,2)); hold on;
-% text(pos(1,1), pos(1,2), 'start');
-% plot(posf(1,1), posf(1,2), 'xr');
-% plot(states(2,:), states(4,:));
-% grid on;  axis equal;
-% xlabel('x(m)'); ylabel('y(m)');
-% legend('nonlinear','linear prog cost');
-
-%% velocity surface compare
-
-figure;
-x1 = pos(:,1);
-y1 = pos(:,2);
-z1 = absvel(:,1);
-% Plot data:
-surf([x1(:) x1(:)], [y1(:) y1(:)], [z1(:) z1(:)], ...  % Reshape and replicate data
-     'FaceColor', 'none', ...    % Don't bother filling faces with color
-     'EdgeColor', 'interp', ...  % Use interpolated color for edges
-     'LineWidth', 2);            % Make a thicker line
-axis equal;
-% text(x1(1), y1(1), 'start');
-% text(x1(end), y1(end), 'end');
-% xlim([-2.5, 0.5]);
-% ylim([0 3]);
-xlabel('x'); ylabel('y'); 
-view(2);   % Default 2-D view
-h = colorbar;
-caxis([0 10]);
-ylabel(h, 'v_h (m/s)')
-
-%%
-set(0, 'DefaultLineLineWidth', 2);
 figure;
 subplot(2,1,1);
-plot(t, phi_arr .* 180/3.142); grid on; hold on;
-plot(tkumar, phikumar);
-plot(tkumar, 25 * ones(length(tkumar),1), '--r');
-plot(tkumar, -25 * ones(length(tkumar),1), '--r');
-legend('roll (proposed)', 'roll (min snap)', 'saturation');
-xlabel('time');
+plot(t, states(2,:)); hold on; grid on;
+plot(t, pos(:,1));
+legend('desired', 'current');
+text(t(1), states(2,1), 'x_0');
+text(t(end), posf(1,1), 'x_d');
 
 subplot(2,1,2);
-plot(t, theta_arr .* 180/3.142); grid on; hold on;
-plot(tkumar, thetakumar);
-plot(tkumar, 25 * ones(length(tkumar),1), '--r');
-plot(tkumar, -25 * ones(length(tkumar),1), '--r');
-legend('pitch (proposed)', 'pitch (min snap)', 'saturation');
-xlabel('time');
+plot(t, states(4,:)); hold on; grid on;
+plot(t, pos(:,2));
+legend('desired', 'current');
+text(t(1), states(4,1), 'y_0');
+text(t(end), posf(1,2), 'y_d');
+sgtitle('position');
+
+figure;
+subplot(2,1,1);
+plot(t, states(1,:)); hold on; grid on;
+plot(t, vel(:,1));
+legend('desired', 'current');
+text(t(1), states(1,1), 'vx_0');
+text(t(end), velf(1,1), 'vx_d');
+
+subplot(2,1,2);
+plot(t, states(3,:)); hold on; grid on;
+plot(t, vel(:,2));
+legend('desired', 'current');
+text(t(1), states(3,1), 'vy_0');
+text(t(end), velf(1,2), 'vy_d');
+sgtitle('velocity');
+
+
+%%
+
+figure;
+plot(pos(:,1), pos(:,2)); hold on;
+text(pos(1,1), pos(1,2), 'start');
+plot(posf(1,1), posf(1,2), 'xr');
+plot(states(2,:), states(4,:));
+grid on;  axis equal;
+xlabel('x(m)'); ylabel('y(m)');
+legend('nonlinear','linear prog cost');
+
+
+
+
+%% STEP5: pos plot cmd
+
+sat = @(s,val) min(max(s, -val), val);
+
+kp_pos_x = 0.05;
+kp_pos_y = 0.05;
+kp_vel_x = 0.05;
+kp_vel_y = 0.05;
+
+max_vel_x = 10;
+max_vel_y = 10;
+
+pitch_fb = zeros(N,1);
+roll_fb  = zeros(N,1);
+
+maxbank = deg2rad(25);
+
+
+for i = 2:1:N
+    posx_cmd = states(2,i);
+    posy_cmd = states(4,i);
+    
+    error_pos_x = posx_cmd - x_est;
+    error_pos_y = posy_cmd - y_est;
+    yaw_est = 0;
+    
+    xVel_est = states(1,i);
+    yVel_est = states(2,i);
+
+    error_pos_x_velframe =  cos(yaw_est)*error_pos_x + sin(yaw_est)*error_pos_y;
+    error_pos_y_velframe = -sin(yaw_est)*error_pos_x + cos(yaw_est)*error_pos_y;
+    
+    vel_x_cmd_velframe = error_pos_x_velframe * kp_pos_x;
+    vel_y_cmd_velframe = error_pos_y_velframe * kp_pos_y;
+
+    vel_x_cmd_velframe = sat(vel_x_cmd_velframe, max_vel_x);
+    vel_y_cmd_velframe = sat(vel_y_cmd_velframe, max_vel_y);
+
+    xVel_est_velframe =  cos(yaw_est) * xVel_est + sin(yaw_est) * yVel_est;
+    yVel_est_velframe = -sin(yaw_est) * xVel_est + cos(yaw_est) * yVel_est;
+
+    error_vel_x = (vel_x_cmd_velframe - xVel_est_velframe);
+    error_vel_y = (vel_y_cmd_velframe - yVel_est_velframe);
+
+    pitch_tmp =  error_vel_x * kp_vel_x;
+    roll_tmp  = -(error_vel_y * kp_vel_y);
+
+    pitch_fb(i) = sat(pitch_tmp, maxbank);
+    roll_fb(i)  = sat(roll_tmp,  maxbank);
+
+end
+
+
+% %% velocity surface compare
+% 
+% figure;
+% x1 = pos(:,1);
+% y1 = pos(:,2);
+% z1 = absvel(:,1);
+% % Plot data:
+% surf([x1(:) x1(:)], [y1(:) y1(:)], [z1(:) z1(:)], ...  % Reshape and replicate data
+%      'FaceColor', 'none', ...    % Don't bother filling faces with color
+%      'EdgeColor', 'interp', ...  % Use interpolated color for edges
+%      'LineWidth', 2);            % Make a thicker line
+% axis equal;
+% % text(x1(1), y1(1), 'start');
+% % text(x1(end), y1(end), 'end');
+% % xlim([-2.5, 0.5]);
+% % ylim([0 3]);
+% xlabel('x'); ylabel('y'); 
+% view(2);   % Default 2-D view
+% h = colorbar;
+% caxis([0 10]);
+% ylabel(h, 'v_h (m/s)')
+% 
+% %%
+% set(0, 'DefaultLineLineWidth', 2);
+% figure;
+% subplot(2,1,1);
+% plot(t, phi_arr .* 180/3.142); grid on; hold on;
+% plot(tkumar, phikumar);
+% plot(tkumar, 25 * ones(length(tkumar),1), '--r');
+% plot(tkumar, -25 * ones(length(tkumar),1), '--r');
+% legend('roll (proposed)', 'roll (min snap)', 'saturation');
+% xlabel('time');
+% 
+% subplot(2,1,2);
+% plot(t, theta_arr .* 180/3.142); grid on; hold on;
+% plot(tkumar, thetakumar);
+% plot(tkumar, 25 * ones(length(tkumar),1), '--r');
+% plot(tkumar, -25 * ones(length(tkumar),1), '--r');
+% legend('pitch (proposed)', 'pitch (min snap)', 'saturation');
+% xlabel('time');
