@@ -53,11 +53,11 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
 %     vel0 = [0, -4];
 %     velf = [0, -4];
 
-    pos0 = [-20 -10];
-    posf = [0 0];
+    pos0 = [-10, -20];
+    posf = [0, 0];
     
-    vel0 = [-3, 0];
-    velf = [-3, 0];
+    vel0 = [0, 3];
+    velf = [0, 3];
 
     x0 = [vel0(1); pos0(1); vel0(2); pos0(2)];
     xd = [velf(1); posf(1); velf(2); posf(2)];
@@ -178,13 +178,13 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
     for i = 2:1:N
 
         theta = U(2*i -3);
-        phi   = -1 * U(2*i -2);
+        phi   = U(2*i -2);
 
-        states(:,i) = (sysZ.A) * states(:,i-1) + (sysZ.B) * [theta; -phi];
+        states(:,i) = (sysZ.A) * states(:,i-1) + (sysZ.B) * [theta; phi];
 
         newAng = [cos(psi) -sin(psi); sin(psi) cos(psi)] * [theta; phi];
         theta = newAng(1);
-        phi = newAng(2);
+        phi = -newAng(2);
 
         T =  9.81 / (cos(phi * flap) * cos(theta * flap));
         ax = (cos(phi) * sin(theta) * cos(psi) + sin(phi) * sin(psi)) * T - vel(i-1, 1) * 0.5;
@@ -215,7 +215,9 @@ while ((banging_theta(blah-1)) < 35 && (banging_phi(blah-1) < 35))
     blah = blah + 1;
     %text(blah, cost, num2str(cost));
 end
-%% STEP4: plot the emulation
+
+
+%% STEP4: plot the emulation with time
 figure;
 subplot(2,1,1);
 plot(t, states(2,:)); hold on; grid on;
@@ -249,7 +251,7 @@ text(t(end), velf(1,2), 'vy_d');
 sgtitle('velocity');
 
 
-%%
+%% phase plot, top plot
 
 figure;
 plot(pos(:,1), pos(:,2)); hold on;
@@ -260,17 +262,14 @@ grid on;  axis equal;
 xlabel('x(m)'); ylabel('y(m)');
 legend('nonlinear','linear prog cost');
 
-
-
-
 %% STEP5: pos plot cmd
 
 sat = @(s,val) min(max(s, -val), val);
 
-kp_pos_x = 0.05;
-kp_pos_y = 0.05;
-kp_vel_x = 0.05;
-kp_vel_y = 0.05;
+kp_pos_x = 0.1;
+kp_pos_y = 0.1;
+kp_vel_x = 0.1;
+kp_vel_y = 0.1;
 
 max_vel_x = 10;
 max_vel_y = 10;
@@ -285,12 +284,15 @@ for i = 2:1:N
     posx_cmd = states(2,i);
     posy_cmd = states(4,i);
     
+    x_est = pos(i,1);
+    y_est = pos(i,2);
+    
     error_pos_x = posx_cmd - x_est;
     error_pos_y = posy_cmd - y_est;
     yaw_est = 0;
     
-    xVel_est = states(1,i);
-    yVel_est = states(2,i);
+    xVel_est = vel(i,1);
+    yVel_est = vel(i,2);
 
     error_pos_x_velframe =  cos(yaw_est)*error_pos_x + sin(yaw_est)*error_pos_y;
     error_pos_y_velframe = -sin(yaw_est)*error_pos_x + cos(yaw_est)*error_pos_y;
@@ -307,13 +309,63 @@ for i = 2:1:N
     error_vel_x = (vel_x_cmd_velframe - xVel_est_velframe);
     error_vel_y = (vel_y_cmd_velframe - yVel_est_velframe);
 
-    pitch_tmp =  error_vel_x * kp_vel_x;
-    roll_tmp  = -(error_vel_y * kp_vel_y);
+    pitch_tmp = -error_vel_x * kp_vel_x;
+    roll_tmp  =  error_vel_y * kp_vel_y;
 
     pitch_fb(i) = sat(pitch_tmp, maxbank);
     roll_fb(i)  = sat(roll_tmp,  maxbank);
 
 end
+
+
+%%
+velfb = zeros(N, 2);
+posfb = zeros(N, 2);
+
+velfb(1,:) = vel0;
+posfb(1,:) = pos0;
+
+dt = h;
+
+for i = 2:1:N
+    phi   = roll_fb(i);
+    theta = pitch_fb(i);
+    
+    T =  9.81 / (cos(phi * flap) * cos(theta * flap));
+    ax = (cos(phi) * sin(theta) * cos(psi) + sin(phi) * sin(psi)) * T - velfb(i-1, 1) * 0.5;
+    ay = (cos(phi) * sin(theta) * sin(psi) - sin(phi) * cos(psi)) * T - velfb(i-1, 2) * 0.5;
+
+    % Simulation
+    velfb(i,:) = velfb(i-1,:) + [ax ay] .* dt;
+    posfb(i,:) = posfb(i-1,:) + velfb(i,:) .* dt;
+end
+
+
+figure;
+plot(posfb(:,1), posfb(:,2)); hold on;
+text(posfb(1,1), posfb(1,2), 'start');
+plot(posf(1,1), posf(1,2), 'xr');
+grid on;  axis equal;
+
+
+%% Plot feedback and feedforward
+
+figure;
+subplot(2,1,1);
+plot(t, rad2deg(theta_arr)); hold on; grid on;
+plot(t, rad2deg(pitch_fb)); legend('ff','fb');
+title('pitch commands');
+
+subplot(2,1,2);
+plot(t, rad2deg(phi_arr)); hold on; grid on;
+plot(t, rad2deg(roll_fb)); legend('ff','fb');
+title('roll commands');
+
+
+%%
+
+
+
 
 
 % %% velocity surface compare
