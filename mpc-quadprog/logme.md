@@ -15,3 +15,8 @@
 - emulate it with 2D now, optimize for 2D also?
 - christophe maneuver time optimal?
 - checkout ACADO solvers (https://github.com/acados/qpOASES/blob/master/doc/manual.pdf)
+
+- what gets different with fb augemented: fbgenerated = fb(fromPD) - ff(from quadprog).
+- fbcmd = ff + fbgenerated = ff + fb(fromPD) - ff(from quadprog). essentially you are only giving fb (from PD) 
+  maybe the idea in lemniscate (https://doi.org/10.1109/LRA.2017.2776353) doesn't make complete sense.
+- revert back to original idea, deploy to AP
