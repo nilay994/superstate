@@ -65,15 +65,7 @@ double zVel_est = 0;
 double dt_est = 0.001;
 bool firstMsg = 1;
 int invoke_cnt = 1;
-/*double pitch_cmd_pid = 0;
-double roll_cmd_pid  = 0;
-double vel_x_pid = 0;
-double vel_y_pid = 0;
 
-double pitch_cmd_opt = 0;
-double roll_cmd_opt  = 0;
-double vel_x_opt = 0;
-double vel_y_opt = 0;*/
 FILE *plotopt_f;
 USING_NAMESPACE_QPOASES
 
@@ -121,6 +113,7 @@ void optimal_calc() {
 	// break optimizer if more than 30% of banging
 	float bangedtheta = 0; float bangedphi = 0;
 	float iterate = 1;
+	double calctimestart = ros::Time::now().toSec();
 	while(bangedphi < 35 && bangedtheta < 35) {
 		// float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / iterate;
 		
@@ -197,7 +190,6 @@ void optimal_calc() {
 				for (int i=0; i<N; i++) {
 					theta_cmd[i] = (float) xOpt[2*i];
 					phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
-					lock_optimal = 1;
 					if ((fabs(fabs(theta_cmd[i])-maxbank) < 0.01) || (fabs(fabs(phi_cmd[i])-maxbank) < 0.01)) {
 						bangedtheta_acc += fabs(theta_cmd[i]);
 						bangedphi_acc   += fabs(phi_cmd[i]);
@@ -216,6 +208,9 @@ void optimal_calc() {
 		}
 		iterate = iterate * 1.2;
 	}
+	double calctimestop = ros::Time::now().toSec() - calctimestart;
+	printf("calc time: %f\n", calctimestop);
+	lock_optimal = 1;
 }
 
 
@@ -370,7 +365,7 @@ int main(int argc, char** argv)
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
 			double completion_time = ros::Time::now().toSec() - start;
-			printf("Finised sequence in %f seconds \n", completion_time);
+			printf("Finished sequence in %f seconds \n", completion_time);
 			i = 0;
 			lock_optimal = 0;
 
