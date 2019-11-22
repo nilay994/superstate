@@ -68,6 +68,7 @@ inline double bound_f(double val, double min, double max) {
 	return val;
 }
 
+ros::Publisher invoke_opt_pub;
 class attitudeNode
 {
 public:
@@ -76,6 +77,7 @@ public:
 
   //publishers
   ros::Publisher angular_rate_cmd_pub;
+  
   mav_msgs::RateThrust angular_rate_cmd;
 
   // subscribers

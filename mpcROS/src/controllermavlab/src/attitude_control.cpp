@@ -3,7 +3,7 @@
 
 
 // rate_hz
-double rate_hz = 960.0;
+double rate_hz = 0.5;
 
 
 // estimated eulers
@@ -57,6 +57,7 @@ attitudeNode::attitudeNode(ros::NodeHandle nh)
   
   // publish to drone dynamics 
   angular_rate_cmd_pub = nh.advertise<mav_msgs::RateThrust>("/uav/input/rateThrust", 1);
+  invoke_opt_pub = nh.advertise<std_msgs::Empty>("/control_nodes/triggeroptimal", 1);
 }
 
 attitudeNode::~attitudeNode()
@@ -188,7 +189,8 @@ int main(int argc, char** argv)
   firstMsg = 1;
 
   while (ros::ok()) {
-
+    std_msgs::Empty empty_msg;
+    invoke_opt_pub.publish(empty_msg);
     ros::spinOnce();
     rate.sleep();
   }
