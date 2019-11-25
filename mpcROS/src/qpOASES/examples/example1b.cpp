@@ -52,14 +52,16 @@ using namespace Eigen;
 
 #define MAX_N 160
 
-#define KP_POS_X 4
-#define KP_POS_Y 4
+#define KP_POS_X 5
+#define KP_POS_Y 5
 
-#define KP_VEL_X 0.04
-#define KP_VEL_Y 0.04
+#define KP_VEL_X 0.06
+#define KP_VEL_Y 0.06
 
-#define MAX_VEL_X 6
-#define MAX_VEL_Y 6
+#define MAX_VEL_X 7
+#define MAX_VEL_Y 7
+
+#define FB
 
 // for gtcallback
 int i = 0;
@@ -99,6 +101,18 @@ Eigen::MatrixXd R(4, 2 * MAX_N);
 Eigen::MatrixXd f(1, 2 * MAX_N);
 
 
+// scale angles to -180 - 180
+double wrap_ang(double ang) {
+	if (ang < -3.142) {
+		ang += 2 * 3.142;
+	}
+	if (ang > 3.142) {
+		ang -= 2 * 3.142;
+	}
+	return ang;
+}
+
+
 // bound a value to a range [min,max]
 double bound_f(double val, double min, double max) {
 	if (val > max) {
@@ -132,13 +146,21 @@ void optimal_calc() {
 		0,0,0.1,0,
 		0,0,0,10;
 
+	// 		double desvel = 6;
+	// double pen = pow(10,(desvel-3));
+	// P << 1/pen,0,0,0,
+	// 	0,pen,0,0,
+	// 	0,0,1/pen,0,
+	// 	0,0,0,pen;
+
+
 	// position final is one of the gates in the arena
 	double pos0[2] = {x_est, y_est};
 	double posf[2] = {-0.37, -12.23};
 
 	// go through the gate with 3.5m/s forward vel
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {6.0, 0};
+	double velf[2] = {desvel, 0};
 
 	// above state space matrices are discretized at 100 milliseconds/10 Hz
 	float dt = 0.1;
@@ -153,9 +175,7 @@ void optimal_calc() {
 		// assumption: can reach anywhere in the arena if I have ten seconds 
 		float T = 8 / iterate; 
 		N = round(T/dt);
-		printf("Horizon: %d\n", N);  
-		
-		// Eigen::Matrix<double, 4, Dynamic> R;
+		printf("Horizon: %d\n", N);
 
 		oldR.resize(4, 2*N);
 		
@@ -167,7 +187,6 @@ void optimal_calc() {
 			AN = A * AN; 
 		}
 
-		
 		R.resize(4, 2 * N);
 		R = oldR.block(0,0,4,2*N);
 		
@@ -243,23 +262,25 @@ void optimal_calc() {
 	double calctimestop = ros::Time::now().toSec() - calctimestart;
 	printf("calc time: %f\n", calctimestop);
 	lock_optimal = 1;
-	
-	states.resize(4, N);
-	Eigen::Matrix<double,4,1> x0;
-	x0 << vel0[0], pos0[0], vel0[1], pos0[1];
-	states.col(0) = x0;
-	Eigen::Matrix<double, 2, 1> inputs;
-	double timeitisnow = ros::Time::now().toSec();
-	fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(0,1), states(0,3));
 
-	printf("here!\n\n\n");
-	
-	for (int i=0; i<N-1; i++) {
-		inputs(0) = theta_ff[i];
-		inputs(1) =  -1 * phi_ff[i];
+	#ifdef FB
+		states.resize(4, N);
+		Eigen::Matrix<double,4,1> x0;
+		x0 << vel0[0], pos0[0], vel0[1], pos0[1];
+		states.col(0) = x0;
+		Eigen::Matrix<double, 2, 1> inputs;
+		double timeitisnow = ros::Time::now().toSec();
+		fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(0,1), states(0,3));
+		
+		for (int i=0; i<N-1; i++) {
+			inputs(0) = theta_ff[i];
+			inputs(1) =  -1 * phi_ff[i];
+			states.col(i+1) = A * states.col(i) + B * inputs; 
 		states.col(i+1) = A * states.col(i) + B * inputs; 
-		fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(1,i+1), states(3,i+1));
-	}
+			states.col(i+1) = A * states.col(i) + B * inputs; 
+			fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(1,i+1), states(3,i+1));
+		}
+	#endif
 	
 }
 
@@ -399,7 +420,7 @@ int main(int argc, char** argv)
 	while(ros::ok()) {
 		
 		if(lock_optimal && i < N) {
-
+			#ifdef FB
             double curr_error_pos_w_x = states(1,i) - x_est;
             double curr_error_pos_w_y = states(3,i) - y_est;
 
@@ -426,14 +447,28 @@ int main(int argc, char** argv)
             pitch_fb = bound_f(pitch_fb, -maxbank, maxbank);
             roll_fb  = bound_f(roll_fb,  -maxbank, maxbank);
 
+			printf("roll: fb: %f, ff: %f \t pitch fb: %f, ff: %f\n", roll_fb * 180/3.142, phi_ff[i]* 180/3.142, pitch_fb* 180/3.142, theta_ff[i]* 180/3.142);
+
 			double theta_cmd = theta_ff[i] + pitch_fb;
-			double phi_cmd   = phi_ff[i]   + roll_fb;
+			double phi_cmd   = phi_ff[i]  + roll_fb;
+			#else 
+			double theta_cmd = theta_ff[i];
+			double phi_cmd   = phi_ff[i];
+
+			#endif
+
 
 			newAng_theta = cos(yaw_est) * theta_cmd - sin(yaw_est) * phi_cmd;
 			newAng_phi   = sin(yaw_est) * theta_cmd + cos(yaw_est) * phi_cmd;	
+			// newAng_theta -= pitch_fb;
+			// newAng_phi -= roll_fb;
 			opt_cmd.angular_rates.x = newAng_phi;
 			opt_cmd.angular_rates.y = newAng_theta;
-			opt_cmd.angular_rates.z = 0;
+
+			double yaw_cmd = wrap_ang(atan2(- 12.23 - y_est, -0.37 -x_est));
+			double yawRate_cmd_point = yaw_cmd - yaw_est;
+			
+			opt_cmd.angular_rates.z = yawRate_cmd_point;
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
 			// cout << "roll: " << phi_ff[i] * 180/3.142 << ", pitch: " << theta_ff[i] * 180/3.142 << endl;
