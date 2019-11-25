@@ -52,11 +52,11 @@ using namespace Eigen;
 
 #define MAX_N 160
 
-#define KP_POS_X 2
-#define KP_POS_Y 2
+#define KP_POS_X 4
+#define KP_POS_Y 4
 
-#define KP_VEL_X 0.02
-#define KP_VEL_Y 0.02
+#define KP_VEL_X 0.04
+#define KP_VEL_Y 0.04
 
 #define MAX_VEL_X 6
 #define MAX_VEL_Y 6
@@ -127,10 +127,10 @@ void optimal_calc() {
 		0, 0.04815;
 
 	Eigen::Matrix<double, 4, 4> P;
-	P << 1,0,0,0,
-		0,5,0,0,
-		0,0,1,0,
-		0,0,0,5;
+	P << 0.1,0,0,0,
+		0,10,0,0,
+		0,0,0.1,0,
+		0,0,0,10;
 
 	// position final is one of the gates in the arena
 	double pos0[2] = {x_est, y_est};
@@ -138,7 +138,7 @@ void optimal_calc() {
 
 	// go through the gate with 3.5m/s forward vel
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {5.0, 0};
+	double velf[2] = {6.0, 0};
 
 	// above state space matrices are discretized at 100 milliseconds/10 Hz
 	float dt = 0.1;
@@ -400,9 +400,8 @@ int main(int argc, char** argv)
 		
 		if(lock_optimal && i < N) {
 
-
-            double curr_error_pos_w_x = states(i,1) - x_est;
-            double curr_error_pos_w_y = states(i,3) - y_est;
+            double curr_error_pos_w_x = states(1,i) - x_est;
+            double curr_error_pos_w_y = states(3,i) - y_est;
 
             double curr_error_pos_x_velframe =  cos(yaw_est)*curr_error_pos_w_x + sin(yaw_est)*curr_error_pos_w_y;
             double curr_error_pos_y_velframe = -sin(yaw_est)*curr_error_pos_w_x + cos(yaw_est)*curr_error_pos_w_y;
@@ -418,14 +417,14 @@ int main(int argc, char** argv)
             double xVel_est_velframe =  cos(yaw_est) * xVel_est + sin(yaw_est) * yVel_est;
             double yVel_est_velframe = -sin(yaw_est) * xVel_est + cos(yaw_est) * yVel_est;
 
-            double curr_error_vel_x = (vel_x_cmd_velframe - xVel_est_velframe);
-            double curr_error_vel_y = (vel_y_cmd_velframe - yVel_est_velframe);
+            double curr_error_vel_x = vel_x_cmd_velframe - xVel_est_velframe;
+            double curr_error_vel_y = vel_y_cmd_velframe - yVel_est_velframe;
 
             double pitch_fb =   curr_error_vel_x * KP_VEL_X; 
             double roll_fb  = -(curr_error_vel_y * KP_VEL_Y); 
 
-            pitch_fb = 0; // bound_f(pitch_fb, -maxbank, maxbank);
-            roll_fb  = 0; //bound_f(roll_fb,  -maxbank, maxbank);
+            pitch_fb = bound_f(pitch_fb, -maxbank, maxbank);
+            roll_fb  = bound_f(roll_fb,  -maxbank, maxbank);
 
 			double theta_cmd = theta_ff[i] + pitch_fb;
 			double phi_cmd   = phi_ff[i]   + roll_fb;
