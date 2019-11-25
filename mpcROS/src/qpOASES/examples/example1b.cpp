@@ -50,7 +50,16 @@
 using namespace std;
 using namespace Eigen;
 
-#define MAX_N 1600
+#define MAX_N 160
+
+#define KP_POS_X 2
+#define KP_POS_Y 2
+
+#define KP_VEL_X 0.02
+#define KP_VEL_Y 0.02
+
+#define MAX_VEL_X 6
+#define MAX_VEL_Y 6
 
 // for gtcallback
 int i = 0;
@@ -67,16 +76,40 @@ bool firstMsg = 1;
 int invoke_cnt = 1;
 
 FILE *plotopt_f;
+FILE *states_f;
 USING_NAMESPACE_QPOASES
 
-float phi_cmd[MAX_N];
-float theta_cmd[MAX_N];
+float phi_ff[MAX_N];
+float theta_ff[MAX_N];
 
 unsigned int N;
 bool lock_optimal = 0;
 
 // saturate at not more than 25 degrees of banking in roll or pitch
 float maxbank = 25.0 * 3.142 / 180.0;
+
+// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
+Options optionsmpc;
+
+Eigen::MatrixXd oldR(4, 2 * MAX_N);
+Eigen::MatrixXd states(4, MAX_N);
+Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
+Eigen::MatrixXd old_H(2 * MAX_N, 2 * MAX_N);
+Eigen::MatrixXd R(4, 2 * MAX_N);
+Eigen::MatrixXd f(1, 2 * MAX_N);
+
+
+// bound a value to a range [min,max]
+double bound_f(double val, double min, double max) {
+	if (val > max) {
+		val = max;
+	} else if (val < min) {
+		val = min;
+	}
+	return val;
+}
+
+
 
 void optimal_calc() {
 	invoke_cnt = invoke_cnt + 1;
@@ -105,7 +138,7 @@ void optimal_calc() {
 
 	// go through the gate with 3.5m/s forward vel
 	double vel0[2] = {xVel_est, yVel_est};
-	double velf[2] = {3.0, 0};
+	double velf[2] = {5.0, 0};
 
 	// above state space matrices are discretized at 100 milliseconds/10 Hz
 	float dt = 0.1;
@@ -118,12 +151,12 @@ void optimal_calc() {
 		// float T = sqrt(pow((pos0[0] - posf[0]),2) + pow((pos0[1] - posf[1]),2)) / iterate;
 		
 		// assumption: can reach anywhere in the arena if I have ten seconds 
-		float T = 10 / iterate; 
+		float T = 8 / iterate; 
 		N = round(T/dt);
 		printf("Horizon: %d\n", N);  
 		
 		// Eigen::Matrix<double, 4, Dynamic> R;
-		Eigen::MatrixXd oldR(4, 2 * MAX_N);
+
 		oldR.resize(4, 2*N);
 		
 		oldR.block(0, 2*N-2, 4, 2) =  B;
@@ -134,9 +167,13 @@ void optimal_calc() {
 			AN = A * AN; 
 		}
 
-		Eigen::MatrixXd R = oldR.block(0,0,4,2*N);
-		Eigen::MatrixXd old_H = 2 * (R.transpose() * P * R);
-		Eigen::MatrixXd eye(2* MAX_N, 2 * MAX_N); 
+		
+		R.resize(4, 2 * N);
+		R = oldR.block(0,0,4,2*N);
+		
+		old_H.resize(2*N, 2*N);
+		old_H = 2 * (R.transpose() * P * R);
+		
 		eye.resize(2*N, 2*N);
 		eye.setIdentity();
 		eye = 0.3 * eye; // TODO: verify after this change - augnment to keep hessian invertable says harvard
@@ -147,7 +184,7 @@ void optimal_calc() {
 		x0 << vel0[0], pos0[0], vel0[1], pos0[1];
 		xd << velf[0], posf[0], velf[1], posf[1];
 		
-		Eigen::MatrixXd f;
+		f.resize(1, 2 * N);
 		f = (2 * ((AN * x0)- xd)).transpose() * P * R;
 
 		int sizes = 2 * N;
@@ -165,14 +202,8 @@ void optimal_calc() {
 
 		// our class of problem, we don't have any constraints on position or velocity, just the inputs
 		/* Setting up QProblemB object. */
-		QProblemB mpctry(2*N);  
+		QProblemB mpctry(2*N); 
 
-		// constructor can be initialized by Hessian type, so it can stop checking for positive definiteness
-		Options optionsmpc;
-		//options.enableFlippingBounds = BT_FALSE;
-		optionsmpc.printLevel = PL_HIGH;  // DEBUG level high, but the prints are muted in the library :(
-		optionsmpc.initialStatusBounds = ST_INACTIVE;
-		optionsmpc.numRefinementSteps = 1;
 		// optionsmpc.enableCholeskyRefactorisation = 1;
 		mpctry.setOptions(optionsmpc);
 
@@ -188,11 +219,11 @@ void optimal_calc() {
 			if (mpctry.getPrimalSolution(xOpt) == SUCCESSFUL_RETURN) {
 				/* populate the command buffers */
 				for (int i=0; i<N; i++) {
-					theta_cmd[i] = (float) xOpt[2*i];
-					phi_cmd[i]   = (float) -1 * xOpt[2*i + 1];
-					if ((fabs(fabs(theta_cmd[i])-maxbank) < 0.01) || (fabs(fabs(phi_cmd[i])-maxbank) < 0.01)) {
-						bangedtheta_acc += fabs(theta_cmd[i]);
-						bangedphi_acc   += fabs(phi_cmd[i]);
+					theta_ff[i] = (float) xOpt[2*i];
+					phi_ff[i]   = (float) -1 * xOpt[2*i + 1];
+					if ((fabs(fabs(theta_ff[i])-maxbank) < 0.01) || (fabs(fabs(phi_ff[i])-maxbank) < 0.01)) {
+						bangedtheta_acc += fabs(theta_ff[i]);
+						bangedphi_acc   += fabs(phi_ff[i]);
 					}
 				}
 				bangedtheta = bangedtheta_acc / (N * maxbank) * 100;
@@ -206,11 +237,30 @@ void optimal_calc() {
 		else {
 			printf("QP couldn't be initialized! \n");
 		}
-		iterate = iterate * 1.2;
+		iterate = iterate * 1.3;
 	}
+	
 	double calctimestop = ros::Time::now().toSec() - calctimestart;
 	printf("calc time: %f\n", calctimestop);
 	lock_optimal = 1;
+	
+	states.resize(4, N);
+	Eigen::Matrix<double,4,1> x0;
+	x0 << vel0[0], pos0[0], vel0[1], pos0[1];
+	states.col(0) = x0;
+	Eigen::Matrix<double, 2, 1> inputs;
+	double timeitisnow = ros::Time::now().toSec();
+	fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(0,1), states(0,3));
+
+	printf("here!\n\n\n");
+	
+	for (int i=0; i<N-1; i++) {
+		inputs(0) = theta_ff[i];
+		inputs(1) =  -1 * phi_ff[i];
+		states.col(i+1) = A * states.col(i) + B * inputs; 
+		fprintf(states_f, "%f,%f,%f\n", timeitisnow, states(1,i+1), states(3,i+1));
+	}
+	
 }
 
 
@@ -302,6 +352,14 @@ int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "qpoases_node");
 	plotopt_f = fopen("plotopt.csv", "w+");
+	states_f = fopen("states.csv", "w+");
+
+
+	//options.enableFlippingBounds = BT_FALSE;
+	optionsmpc.printLevel = PL_HIGH;  // DEBUG level high, but the prints are muted in the library :(
+	optionsmpc.initialStatusBounds = ST_INACTIVE;
+	optionsmpc.numRefinementSteps = 1;
+
 	ros::NodeHandle nh;
 
 	// for showing the rosbag replay
@@ -341,14 +399,45 @@ int main(int argc, char** argv)
 	while(ros::ok()) {
 		
 		if(lock_optimal && i < N) {
-			newAng_theta = cos(yaw_est) * theta_cmd[i] - sin(yaw_est) * phi_cmd[i];
-			newAng_phi = sin(yaw_est) * theta_cmd[i] + cos(yaw_est) * phi_cmd[i];	
+
+
+            double curr_error_pos_w_x = states(i,1) - x_est;
+            double curr_error_pos_w_y = states(i,3) - y_est;
+
+            double curr_error_pos_x_velframe =  cos(yaw_est)*curr_error_pos_w_x + sin(yaw_est)*curr_error_pos_w_y;
+            double curr_error_pos_y_velframe = -sin(yaw_est)*curr_error_pos_w_x + cos(yaw_est)*curr_error_pos_w_y;
+
+            double vel_x_cmd_velframe = curr_error_pos_x_velframe * KP_POS_X;
+            double vel_y_cmd_velframe = curr_error_pos_y_velframe * KP_POS_Y;
+
+            vel_x_cmd_velframe = bound_f(vel_x_cmd_velframe, -MAX_VEL_X, MAX_VEL_X);
+            vel_y_cmd_velframe = bound_f(vel_y_cmd_velframe, -MAX_VEL_Y, MAX_VEL_Y);
+
+            // vel_x_cmd_velframe += 5; //pitch more for gate vel
+
+            double xVel_est_velframe =  cos(yaw_est) * xVel_est + sin(yaw_est) * yVel_est;
+            double yVel_est_velframe = -sin(yaw_est) * xVel_est + cos(yaw_est) * yVel_est;
+
+            double curr_error_vel_x = (vel_x_cmd_velframe - xVel_est_velframe);
+            double curr_error_vel_y = (vel_y_cmd_velframe - yVel_est_velframe);
+
+            double pitch_fb =   curr_error_vel_x * KP_VEL_X; 
+            double roll_fb  = -(curr_error_vel_y * KP_VEL_Y); 
+
+            pitch_fb = 0; // bound_f(pitch_fb, -maxbank, maxbank);
+            roll_fb  = 0; //bound_f(roll_fb,  -maxbank, maxbank);
+
+			double theta_cmd = theta_ff[i] + pitch_fb;
+			double phi_cmd   = phi_ff[i]   + roll_fb;
+
+			newAng_theta = cos(yaw_est) * theta_cmd - sin(yaw_est) * phi_cmd;
+			newAng_phi   = sin(yaw_est) * theta_cmd + cos(yaw_est) * phi_cmd;	
 			opt_cmd.angular_rates.x = newAng_phi;
 			opt_cmd.angular_rates.y = newAng_theta;
 			opt_cmd.angular_rates.z = 0;
 			opt_cmd.thrust.z = 9.81;
 			optimalcmd_pub.publish(opt_cmd);
-			// cout << "roll: " << phi_cmd[i] * 180/3.142 << ", pitch: " << theta_cmd[i] * 180/3.142 << endl;
+			// cout << "roll: " << phi_ff[i] * 180/3.142 << ", pitch: " << theta_ff[i] * 180/3.142 << endl;
 			opt_cmd_cpy.header.stamp = ros::Time::now(); //- startrostime;
 			opt_cmd_cpy.angular_rates.x = newAng_phi * 180/3.142;
 			opt_cmd_cpy.angular_rates.y = newAng_theta * 180/3.142;
