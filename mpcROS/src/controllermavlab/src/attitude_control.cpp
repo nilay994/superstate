@@ -48,6 +48,8 @@ double kp_yawRate = 1.5;
 double kp_hVel = 10.0;
 double zVel_cmd = 9.81;
 
+
+
 attitudeNode::attitudeNode(ros::NodeHandle nh)
 {
   // keyboard_sub = nh.subscribe("/controller/input/keyboard", 1000, &attitudeNode::keyboard_cb, this);
@@ -84,6 +86,8 @@ void attitudeNode::imu_cb(const sensor_msgs::Imu &imuMsg)
   acc_z = imuMsg.linear_acceleration.z;
 }
 
+
+double yawRate_cmd_point = 0;
 void attitudeNode::optimalcmd_cb(const mav_msgs::RateThrust &cmd)
 {
   roll_cmd    = cmd.angular_rates.x;
@@ -148,7 +152,8 @@ void attitudeNode::gtCallback(const tf2_msgs::TFMessage &groundTruth_msg)
 
 	double d_roll_cmd  = kp_roll  * (roll_cmd - roll_est)   - kd_roll  * p; //PID_attitude_controller.roll_cmd * 0.3
 	double d_pitch_cmd = kp_pitch * (pitch_cmd - pitch_est) - kd_pitch * q; //PID_attitude_controller.pitch_cmd * 0.3
-	double d_yaw_cmd   = yawRate_cmd * kp_yawRate;
+
+	double d_yaw_cmd = yawRate_cmd * kp_yawRate;
 
 	angular_rate_cmd.thrust.z = 9.81 / (cos(roll_est) * cos(pitch_est)) - 0.3 * zVel_est + 0.4 * (4 - z_est); // Gate3 is at 4m
 	// ROS_INFO_STREAM("thrust f " << angular_rate_cmd.thrust.z);
